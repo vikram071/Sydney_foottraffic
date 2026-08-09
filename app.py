@@ -32,7 +32,7 @@ HTML_OUTPUT_FILE = "sydney_commute_dashboard.html"
 
 def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
     """Renders the comprehensive Sydney Transport, Foot Traffic & ML Analytics Platform HTML dashboard."""
-    print("Generating Plotly interactive Sydney commute dashboard with 100% cross-filtering engine...")
+    print("Generating Plotly interactive Sydney commute dashboard with layout fix...")
 
     # 1. Query Data & Train ML Models
     metrics = get_latest_metrics()
@@ -62,7 +62,7 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
     fig_speed = build_mode_speed_comparison_chart(mode_df)
     fig_ranking = build_top_interchanges_ranking_chart(station_df)
 
-    # Convert figures to HTML divs with specific IDs for Plotly.react
+    # Convert figures to HTML divs
     map_div = fig_map.to_html(full_html=False, include_plotlyjs="cdn", div_id="plotly_map")
     ml_div = fig_ml.to_html(full_html=False, include_plotlyjs=False, div_id="plotly_ml")
     routes_div = fig_routes.to_html(full_html=False, include_plotlyjs=False, div_id="plotly_routes")
@@ -83,7 +83,7 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
     total_delays = metrics.get("total_delays", 0)
     next_hour_pred = pred_df["predicted_idx"].iloc[-1] if not pred_df.empty else 62.4
 
-    # 4. Assemble HTML document with Glassmorphism & Power BI Filter Engine
+    # 4. Assemble HTML document
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -325,9 +325,10 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 18px;
-            padding-bottom: 14px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            flex-shrink: 0;
         }}
 
         .card-title {{
@@ -367,15 +368,29 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
             backdrop-filter: blur(16px);
             border: 1px solid var(--card-border);
             border-radius: 24px;
-            padding: 28px;
+            padding: 24px;
             overflow: hidden;
             box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
             margin-bottom: 36px;
+            min-height: 480px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
             transition: border-color 0.3s ease;
+        }}
+
+        .card.map-card {{
+            min-height: 600px;
         }}
 
         .card:hover {{
             border-color: rgba(255, 255, 255, 0.18);
+        }}
+
+        .js-plotly-plot, .plotly-graph-div {{
+            width: 100% !important;
+            min-height: 400px !important;
+            flex-grow: 1;
         }}
 
         .full-width {{
@@ -503,7 +518,7 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
         </section>
 
         <!-- 1. Sydney Live Geospatial Map -->
-        <section class="card full-width">
+        <section class="card map-card full-width">
             <div class="card-header">
                 <h3 class="card-title">🌐 Sydney Live Geospatial Transport & Interchange Network</h3>
                 <span class="card-badge">Real-Time Geo Map</span>
@@ -586,14 +601,6 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
         const RAW_TRENDS = {json_trends};
         const RAW_ROUTES = {json_routes};
         const RAW_ML = {json_ml};
-
-        const MODE_COLORS = {{
-            "Sydney Trains": "#06B6D4",
-            "Sydney Metro": "#8B5CF6",
-            "Sydney Buses": "#3B82F6",
-            "Sydney Ferries": "#10B981",
-            "Light Rail": "#F59E0B"
-        }};
 
         function animateCounter(elementId, targetVal, isDecimal = false, suffix = '') {{
             const el = document.getElementById(elementId);
@@ -697,8 +704,9 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
 
                 Plotly.react('plotly_map', stationTraces, {{
                     mapbox: {{ style: 'carto-darkmatter', center: {{ lat: -33.8688, lon: 151.2093 }}, zoom: 10.5 }},
-                    margin: {{ l: 0, r: 0, t: 10, b: 0 }},
-                    height: 540,
+                    margin: {{ l: 0, r: 0, t: 0, b: 0 }},
+                    height: 520,
+                    autosize: true,
                     paper_bgcolor: 'rgba(11, 15, 25, 0.95)',
                     plot_bgcolor: 'rgba(13, 17, 29, 0.85)',
                     font: {{ color: '#F8FAFC' }}
@@ -718,11 +726,13 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
                 }}], {{
                     paper_bgcolor: 'rgba(11, 15, 25, 0.95)',
                     plot_bgcolor: 'rgba(13, 17, 29, 0.85)',
-                    margin: {{ l: 45, r: 35, t: 25, b: 45 }},
-                    height: 450,
+                    margin: {{ l: 55, r: 35, t: 15, b: 65 }},
+                    height: 400,
+                    autosize: true,
                     font: {{ color: '#F8FAFC' }},
                     xaxis: {{ title: 'Hour of Day', gridcolor: 'rgba(255, 255, 255, 0.05)' }},
-                    yaxis: {{ title: 'Foot Traffic Index', gridcolor: 'rgba(255, 255, 255, 0.05)' }}
+                    yaxis: {{ title: 'Foot Traffic Index', gridcolor: 'rgba(255, 255, 255, 0.05)' }},
+                    legend: {{ orientation: 'h', yanchor: 'top', y: -0.22, xanchor: 'center', x: 0.5 }}
                 }});
             }}
 
@@ -734,7 +744,7 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
                         x: rData.map(r => r.baseline_time_min),
                         type: 'bar',
                         orientation: 'h',
-                        name: 'Baseline Duration (min)',
+                        name: 'Baseline (min)',
                         marker: {{ color: 'rgba(16, 185, 129, 0.7)' }}
                     }},
                     {{
@@ -742,18 +752,20 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
                         x: rData.map(r => r.avg_delay_min),
                         type: 'bar',
                         orientation: 'h',
-                        name: 'Congestion Delay (min)',
+                        name: 'Delay (min)',
                         marker: {{ color: 'rgba(244, 63, 94, 0.8)' }}
                     }}
                 ], {{
                     paper_bgcolor: 'rgba(11, 15, 25, 0.95)',
                     plot_bgcolor: 'rgba(13, 17, 29, 0.85)',
-                    margin: {{ l: 35, r: 35, t: 25, b: 45 }},
-                    height: 450,
+                    margin: {{ l: 110, r: 35, t: 15, b: 65 }},
+                    height: 400,
+                    autosize: true,
                     barmode: 'stack',
                     font: {{ color: '#F8FAFC' }},
                     xaxis: {{ title: 'Travel Time (Minutes)', gridcolor: 'rgba(255, 255, 255, 0.05)' }},
-                    yaxis: {{ autorange: 'reversed' }}
+                    yaxis: {{ autorange: 'reversed' }},
+                    legend: {{ orientation: 'h', yanchor: 'top', y: -0.22, xanchor: 'center', x: 0.5 }}
                 }});
             }}
 
@@ -779,9 +791,11 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
                 ], {{
                     paper_bgcolor: 'rgba(11, 15, 25, 0.95)',
                     plot_bgcolor: 'rgba(13, 17, 29, 0.85)',
-                    margin: {{ l: 45, r: 45, t: 25, b: 45 }},
-                    height: 450,
-                    font: {{ color: '#F8FAFC' }}
+                    margin: {{ l: 55, r: 45, t: 15, b: 65 }},
+                    height: 400,
+                    autosize: true,
+                    font: {{ color: '#F8FAFC' }},
+                    legend: {{ orientation: 'h', yanchor: 'top', y: -0.22, xanchor: 'center', x: 0.5 }}
                 }});
             }}
 
@@ -799,8 +813,9 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
                 }}], {{
                     paper_bgcolor: 'rgba(11, 15, 25, 0.95)',
                     plot_bgcolor: 'rgba(13, 17, 29, 0.85)',
-                    margin: {{ l: 25, r: 25, t: 25, b: 25 }},
-                    height: 450,
+                    margin: {{ l: 25, r: 25, t: 15, b: 25 }},
+                    height: 400,
+                    autosize: true,
                     showlegend: false
                 }});
             }}
@@ -822,10 +837,12 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
                 ], {{
                     paper_bgcolor: 'rgba(11, 15, 25, 0.95)',
                     plot_bgcolor: 'rgba(13, 17, 29, 0.85)',
-                    margin: {{ l: 35, r: 35, t: 25, b: 45 }},
-                    height: 450,
+                    margin: {{ l: 55, r: 35, t: 15, b: 65 }},
+                    height: 400,
+                    autosize: true,
                     barmode: 'group',
-                    font: {{ color: '#F8FAFC' }}
+                    font: {{ color: '#F8FAFC' }},
+                    legend: {{ orientation: 'h', yanchor: 'top', y: -0.22, xanchor: 'center', x: 0.5 }}
                 }});
             }}
 
@@ -841,8 +858,9 @@ def generate_html_dashboard(output_file=HTML_OUTPUT_FILE):
                 }}], {{
                     paper_bgcolor: 'rgba(11, 15, 25, 0.95)',
                     plot_bgcolor: 'rgba(13, 17, 29, 0.85)',
-                    margin: {{ l: 35, r: 35, t: 25, b: 45 }},
-                    height: 480,
+                    margin: {{ l: 130, r: 45, t: 15, b: 45 }},
+                    height: 460,
+                    autosize: true,
                     xaxis: {{ title: 'Foot Traffic Index (0-100)', range: [0, 115], gridcolor: 'rgba(255, 255, 255, 0.05)' }},
                     yaxis: {{ autorange: 'reversed' }}
                 }});

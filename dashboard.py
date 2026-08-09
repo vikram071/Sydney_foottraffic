@@ -99,8 +99,9 @@ def build_sydney_foot_traffic_map(vehicle_df, station_df):
             center=dict(lat=-33.8688, lon=151.2093),
             zoom=10.5
         ),
-        margin=dict(l=0, r=0, t=10, b=0),
-        height=540,
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=520,
+        autosize=True,
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
@@ -149,7 +150,7 @@ def build_ml_time_series_forecast_chart(pred_df, metrics):
     fig.add_trace(gg.Scatter(
         x=pred_df["formatted_hour"],
         y=pred_df["actual_avg"],
-        name="Actual Foot Traffic Index",
+        name="Actual Foot Traffic",
         mode="lines+markers",
         line=dict(color="#06B6D4", width=3, shape="spline"),
         marker=dict(size=7, color="#06B6D4")
@@ -159,7 +160,7 @@ def build_ml_time_series_forecast_chart(pred_df, metrics):
     fig.add_trace(gg.Scatter(
         x=pred_df["formatted_hour"],
         y=pred_df["predicted_idx"],
-        name="ML Predicted Forecast",
+        name="ML Forecast",
         mode="lines+markers",
         line=dict(color="#8B5CF6", width=3, dash="dash", shape="spline"),
         marker=dict(size=7, color="#8B5CF6", symbol="diamond")
@@ -168,12 +169,13 @@ def build_ml_time_series_forecast_chart(pred_df, metrics):
     fig.update_layout(
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=45, r=35, t=25, b=45),
-        height=450,
+        margin=dict(l=55, r=35, t=15, b=65),
+        height=400,
+        autosize=True,
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         xaxis=dict(title="Hour of Day", gridcolor=GRID_COLOR),
-        yaxis=dict(title="Foot Traffic Index (0-100)", gridcolor=GRID_COLOR),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        yaxis=dict(title="Foot Traffic Index", gridcolor=GRID_COLOR),
+        legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5),
         transition=dict(duration=500, easing="cubic-in-out")
     )
     return fig
@@ -189,7 +191,7 @@ def build_route_commute_estimator_chart(route_df):
     fig.add_trace(gg.Bar(
         y=route_df["route_label"],
         x=route_df["baseline_time_min"],
-        name="Baseline Duration (min)",
+        name="Baseline (min)",
         orientation="h",
         marker=dict(color="rgba(16, 185, 129, 0.7)")
     ))
@@ -197,7 +199,7 @@ def build_route_commute_estimator_chart(route_df):
     fig.add_trace(gg.Bar(
         y=route_df["route_label"],
         x=route_df["avg_delay_min"],
-        name="Congestion Delay (min)",
+        name="Delay (min)",
         orientation="h",
         marker=dict(color="rgba(244, 63, 94, 0.8)")
     ))
@@ -205,11 +207,12 @@ def build_route_commute_estimator_chart(route_df):
     fig.update_layout(
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=35, r=35, t=25, b=45),
-        height=450,
+        margin=dict(l=110, r=35, t=15, b=65),
+        height=400,
+        autosize=True,
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         barmode="stack",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5),
         xaxis=dict(title="Travel Time (Minutes)", gridcolor=GRID_COLOR),
         yaxis=dict(autorange="reversed"),
         transition=dict(duration=500, easing="cubic-in-out")
@@ -230,7 +233,7 @@ def build_hourly_commute_trends_chart(trends_df):
         gg.Scatter(
             x=trends_df["formatted_hour"],
             y=trends_df["avg_foot_traffic"],
-            name="Avg Foot Traffic Index",
+            name="Foot Traffic Index",
             mode="lines+markers",
             line=dict(color="#06B6D4", width=3, shape="spline"),
             marker=dict(size=8, color="#06B6D4"),
@@ -244,7 +247,7 @@ def build_hourly_commute_trends_chart(trends_df):
         gg.Bar(
             x=trends_df["formatted_hour"],
             y=trends_df["avg_delay_seconds"],
-            name="Avg Delay (Sec)",
+            name="Avg Delay (s)",
             marker=dict(color="rgba(244, 63, 94, 0.65)", line=dict(color="#F43F5E", width=1)),
             opacity=0.75
         ),
@@ -254,16 +257,17 @@ def build_hourly_commute_trends_chart(trends_df):
     fig.update_layout(
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=45, r=45, t=25, b=45),
-        height=450,
+        margin=dict(l=55, r=45, t=15, b=65),
+        height=400,
+        autosize=True,
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         xaxis=dict(title="Hour of Day", gridcolor=GRID_COLOR),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5),
         transition=dict(duration=500, easing="cubic-in-out")
     )
 
-    fig.update_yaxes(title_text="Foot Traffic Index (0-100)", secondary_y=False, gridcolor=GRID_COLOR)
-    fig.update_yaxes(title_text="Avg Delay (Sec)", secondary_y=True, showgrid=False)
+    fig.update_yaxes(title_text="Foot Traffic Index", secondary_y=False, gridcolor=GRID_COLOR)
+    fig.update_yaxes(title_text="Avg Delay (s)", secondary_y=True, showgrid=False)
 
     return fig
 
@@ -278,15 +282,16 @@ def build_congestion_heatmap_matrix_chart(pivot_df):
         x=pivot_df.columns,
         y=pivot_df.index,
         colorscale="Viridis",
-        colorbar=dict(title="Foot Traffic", len=0.85),
+        colorbar=dict(title="Index", len=0.85),
         hovertemplate="Station: <b>%{y}</b><br>Hour: <b>%{x}</b><br>Foot Traffic: <b>%{z:.1f}</b><extra></extra>"
     ))
 
     fig.update_layout(
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=35, r=35, t=25, b=45),
-        height=450,
+        margin=dict(l=110, r=35, t=15, b=45),
+        height=400,
+        autosize=True,
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         xaxis=dict(title="Hour of Day", gridcolor=GRID_COLOR),
         yaxis=dict(title="", gridcolor=GRID_COLOR, autorange="reversed"),
@@ -315,8 +320,9 @@ def build_mode_capacity_donut_chart(mode_df):
     fig.update_layout(
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=25, r=25, t=25, b=25),
-        height=450,
+        margin=dict(l=25, r=25, t=15, b=25),
+        height=400,
+        autosize=True,
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         showlegend=False,
         transition=dict(duration=500, easing="cubic-in-out")
@@ -348,11 +354,12 @@ def build_mode_speed_comparison_chart(mode_df):
     fig.update_layout(
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=35, r=35, t=25, b=45),
-        height=450,
+        margin=dict(l=55, r=35, t=15, b=65),
+        height=400,
+        autosize=True,
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         barmode="group",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5),
         yaxis=dict(title="Speed (km/h)", gridcolor=GRID_COLOR),
         transition=dict(duration=500, easing="cubic-in-out")
     )
@@ -381,8 +388,9 @@ def build_top_interchanges_ranking_chart(station_df):
     fig.update_layout(
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=35, r=35, t=25, b=45),
-        height=480,
+        margin=dict(l=130, r=45, t=15, b=45),
+        height=460,
+        autosize=True,
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         xaxis=dict(title="Foot Traffic Index (0-100)", range=[0, 115], gridcolor=GRID_COLOR),
         yaxis=dict(autorange="reversed"),
