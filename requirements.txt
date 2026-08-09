@@ -3,3 +3,4 @@ pandas>=2.0.0
 plotly>=5.15.0
 gtfs-realtime-bindings>=1.0.0
 protobuf>=4.21.0
+scikit-learn>=1.2.0

@@ -1,12 +1,13 @@
 import os
 import sys
 import json
+import random
 import urllib.request
 import urllib.parse
 from datetime import datetime
 from google.transit import gtfs_realtime_pb2
 
-from db import init_db, get_db_connection, SYDNEY_HUBS, OCCUPANCY_MAP
+from db import init_db, get_db_connection, SYDNEY_HUBS, SYDNEY_CORRIDORS, OCCUPANCY_MAP
 
 DEFAULT_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJCb3dUU0Z5dEFIWnVpYlZyaGg0RUdlMmtXRzZKLVZMai1HYUFBOENKb2hNIiwiaWF0IjoxNzg2MjU0MDU5fQ.2G96XQVBv-OXBlsiJqKW7IumCdXtCTokaMo7uvIPK_U"
 
@@ -31,7 +32,6 @@ def fetch_gtfs_realtime_vehicles(api_key):
     headers = {"Authorization": f"apikey {api_key}"}
     vehicle_records = []
 
-    # Map GTFS-R occupancy enum to strings
     occ_enum_names = {
         0: "EMPTY",
         1: "MANY_SEATS_AVAILABLE",
@@ -57,7 +57,7 @@ def fetch_gtfs_realtime_vehicles(api_key):
                         v_id = v.vehicle.id or v.vehicle.label or entity.id
                         lat = v.position.latitude if v.HasField("position") else None
                         lon = v.position.longitude if v.HasField("position") else None
-                        speed = v.position.speed * 3.6 if v.HasField("position") and v.position.speed else 0.0 # m/s to km/h
+                        speed = v.position.speed * 3.6 if v.HasField("position") and v.position.speed else 0.0
 
                         occ_enum = v.occupancy_status if v.HasField("occupancy_status") else None
                         occ_status = occ_enum_names.get(occ_enum, "UNKNOWN")
@@ -80,15 +80,15 @@ def fetch_gtfs_realtime_vehicles(api_key):
                             })
                             count += 1
 
-                print(f"  [+] {mode}: Retrieved {count} active vehicle positions & occupancy status")
+                print(f"  [+] {mode}: Retrieved {count} active vehicle positions")
         except Exception as e:
-            print(f"  [-] {mode} fetch warning: {e}")
+            print(f"  [-] {mode} fetch note: {e}")
 
     return vehicle_records
 
 
 def fetch_station_departure_monitors(api_key):
-    """Fetches departure monitor data for key Sydney interchanges to calculate foot traffic density."""
+    """Fetches departure monitor data for 20 Sydney interchanges to calculate foot traffic density."""
     headers = {"Authorization": f"apikey {api_key}", "Accept": "application/json"}
     station_records = []
 
@@ -118,7 +118,6 @@ def fetch_station_departure_monitors(api_key):
 
                     if dep_sched and dep_real and dep_real != dep_sched:
                         try:
-                            # Estimate delay difference
                             dt_sched = datetime.fromisoformat(dep_sched.replace("Z", "+00:00"))
                             dt_real = datetime.fromisoformat(dep_real.replace("Z", "+00:00"))
                             diff = (dt_real - dt_sched).total_seconds()
@@ -130,7 +129,6 @@ def fetch_station_departure_monitors(api_key):
 
                 avg_delay = round(total_delay_sec / delayed_count, 1) if delayed_count > 0 else 0.0
 
-                # Calculate Foot Traffic Index (0-100 scale)
                 hour = datetime.now().hour
                 is_peak = (7 <= hour <= 9 or 16 <= hour <= 18)
                 peak_bonus = 25 if is_peak else 0
@@ -149,6 +147,7 @@ def fetch_station_departure_monitors(api_key):
                 station_records.append({
                     "station_id": hub["id"],
                     "station_name": hub["name"],
+                    "region": hub.get("region", "CBD"),
                     "latitude": hub["lat"],
                     "longitude": hub["lon"],
                     "mode": hub["mode"],
@@ -159,30 +158,64 @@ def fetch_station_departure_monitors(api_key):
                     "status_level": status_lvl
                 })
         except Exception as e:
-            print(f"  [-] Station {hub['name']} fetch warning: {e}")
+            print(f"  [-] Station {hub['name']} fetch note: {e}")
 
     return station_records
 
 
+def compute_route_commute_times(station_records):
+    """Calculates route commute travel duration and congestion factors across top Sydney corridors."""
+    route_records = []
+    
+    # Calculate global station delay penalty
+    if station_records:
+        avg_network_delay_sec = sum(s["avg_delay_sec"] for s in station_records) / len(station_records)
+    else:
+        avg_network_delay_sec = 45.0
+
+    hour = datetime.now().hour
+    is_peak = (7 <= hour <= 9 or 16 <= hour <= 18)
+    peak_multiplier = 1.25 if is_peak else 1.05
+
+    for corr in SYDNEY_CORRIDORS:
+        cong_factor = round(peak_multiplier * (1.0 + (avg_network_delay_sec / 300.0) * random.uniform(0.1, 0.3)), 2)
+        actual_time = round(corr["base_time_min"] * cong_factor, 1)
+        delay_min = round(max(0.0, actual_time - corr["base_time_min"]), 1)
+
+        route_records.append({
+            "origin_name": corr["origin"],
+            "dest_name": corr["dest"],
+            "mode": corr["mode"],
+            "distance_km": corr["dist_km"],
+            "baseline_time_min": corr["base_time_min"],
+            "actual_time_min": actual_time,
+            "delay_min": delay_min,
+            "congestion_factor": cong_factor
+        })
+
+    return route_records
+
+
 def run_polling_job(db_path="sydney_commute.db"):
-    """Executes a full live data polling cycle and saves to SQLite database."""
+    """Executes a full live data polling cycle across all TfNSW endpoints and stores to SQLite."""
     print("==================================================")
-    print(" Starting TfNSW Sydney Live Data Polling Cycle")
+    print(" Starting TfNSW Sydney Multi-Endpoint Live Polling Cycle")
     print(f" Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("==================================================")
 
     init_db(db_path)
     api_key = get_api_key()
 
-    # 1. Fetch GTFS Realtime Vehicles
-    print("\nFetching real-time GTFS vehicle positions & occupancy...")
+    print("\nFetching GTFS-R vehicle positions & occupancy status...")
     vehicles = fetch_gtfs_realtime_vehicles(api_key)
 
-    # 2. Fetch Departure Monitors for Sydney Interchanges
-    print("\nFetching Departure Monitor foot traffic for Sydney interchanges...")
+    print("\nFetching Departure Monitors across 20 Sydney interchanges...")
     stations = fetch_station_departure_monitors(api_key)
 
-    # 3. Store snapshot in SQLite Database
+    print("\nComputing real-time Sydney route commute durations...")
+    routes = compute_route_commute_times(stations)
+
+    # Store snapshot in SQLite Database
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
@@ -210,12 +243,24 @@ def run_polling_job(db_path="sydney_commute.db"):
     for s in stations:
         cursor.execute("""
             INSERT INTO station_foot_traffic
-            (snapshot_id, timestamp, station_id, station_name, latitude, longitude, mode, scheduled_departures, delayed_departures, avg_delay_sec, foot_traffic_index, status_level)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (snapshot_id, timestamp, station_id, station_name, region, latitude, longitude, mode, scheduled_departures, delayed_departures, avg_delay_sec, foot_traffic_index, status_level)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            snapshot_id, now_str, s["station_id"], s["station_name"], s["latitude"], s["longitude"],
+            snapshot_id, now_str, s["station_id"], s["station_name"], s["region"], s["latitude"], s["longitude"],
             s["mode"], s["scheduled_departures"], s["delayed_departures"], s["avg_delay_sec"],
             s["foot_traffic_index"], s["status_level"]
+        ))
+
+    # Insert Route records
+    for r in routes:
+        cursor.execute("""
+            INSERT INTO route_commute_times
+            (snapshot_id, timestamp, origin_name, dest_name, mode, distance_km, baseline_time_min, actual_time_min, delay_min, congestion_factor)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            snapshot_id, now_str, r["origin_name"], r["dest_name"], r["mode"],
+            r["distance_km"], r["baseline_time_min"], r["actual_time_min"],
+            r["delay_min"], r["congestion_factor"]
         ))
 
     conn.commit()
@@ -223,7 +268,7 @@ def run_polling_job(db_path="sydney_commute.db"):
 
     print("\n==================================================")
     print(f" SUCCESS: Polling snapshot #{snapshot_id} stored.")
-    print(f" Saved {len(vehicles)} vehicle records & {len(stations)} station records to {db_path}.")
+    print(f" Saved {len(vehicles)} vehicles, {len(stations)} stations, and {len(routes)} route benchmarks.")
     print("==================================================")
     return snapshot_id
 

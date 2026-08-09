@@ -1,8 +1,8 @@
-# Sydney Transport & Foot Traffic Analytics Pipeline
+# Sydney Transport, Foot Traffic & ML Analytics Intelligence Platform
 
-An end-to-end data engineering pipeline and interactive Plotly dashboard for Transport for NSW (TfNSW) real-time public transport feeds.
+An enterprise data engineering and machine learning platform for Transport for NSW (TfNSW) real-time public transport feeds and spatial analytics.
 
-The system periodically pulls GTFS-Realtime vehicle position feeds (Sydney Trains, Metro, Buses, Ferries, Light Rail) and Trip Planner Departure Monitors, stores data in a structured SQLite database (`sydney_commute.db`), automates execution via GitHub Actions **every 30 minutes**, and renders/deploys an interactive Plotly dashboard hosted live on **GitHub Pages**.
+The system polls GTFS-Realtime feeds (Sydney Trains, Metro, Buses, Ferries, Light Rail) and Departure Monitors across 20+ Sydney hubs, stores structured metrics in a SQLite database (`sydney_commute.db`), trains scikit-learn time-series forecasting models, automates execution every 30 minutes via GitHub Actions, and renders an interactive Plotly dashboard hosted live on **GitHub Pages**.
 
 🔗 **Live GitHub Repository**: [https://github.com/vikram071/Sydney_foottraffic](https://github.com/vikram071/Sydney_foottraffic)  
 🌐 **Live Dashboard URL**: [https://vikram071.github.io/Sydney_foottraffic/](https://vikram071.github.io/Sydney_foottraffic/)
@@ -11,31 +11,32 @@ The system periodically pulls GTFS-Realtime vehicle position feeds (Sydney Train
 
 ## 🌟 Key Features
 
-1. **TfNSW Live API Integration**: Real-time retrieval of GTFS-Realtime vehicle positions, occupancy statuses, speeds, and interchange departure monitors using TfNSW Open Data APIs.
-2. **Structured Relational Storage (`sydney_commute.db`)**: SQLite schema storing snapshots, vehicle occupancy scores, interchange foot traffic indexes, and 24-hour commute trends.
-3. **Automated 30-Minute Sync (GitHub Actions)**: `.github/workflows/daily_poll.yml` configured to execute every 30 minutes (`*/30 * * * *`), updates the SQLite database, and rebuilds the dashboard.
-4. **Live GitHub Pages Hosting**: Automatically deploys `index.html` to GitHub Pages so your dashboard is viewable online from anywhere (`https://vikram071.github.io/Sydney_foottraffic/`).
-5. **Interactive Plotly Visualizations**:
-   - **Geospatial Network Map**: Real-time Sydney map displaying active transport vehicles and interchange congestion levels.
-   - **24-Hour Commute & Delay Trends**: Dual-axis line and bar chart tracking Sydney foot traffic index and departure delays.
-   - **Transport Mode Split**: Donut chart showing fleet distribution across Trains, Metro, Buses, Ferries, and Light Rail.
-   - **Occupancy Level Breakdown**: Stacked bar chart comparing seat availability vs. standing room across modes.
-   - **Busiest Interchanges Ranking**: Horizontal bar chart ranking top Sydney hubs (Central, Parramatta, Wynyard, Town Hall, Circular Quay, Bondi Junction, Chatswood, Airport).
+1. **Multi-Endpoint TfNSW Integration**: Real-time vehicle positions, occupancy load factors, speeds, departure monitor foot traffic across 20+ Sydney transport hubs.
+2. **Machine Learning Time-Series Forecasting (`ml_models.py`)**:
+   - Trains Ridge Regression models on historical station foot traffic and departure delay curves.
+   - Generates 24-hour forward predictions with 95% confidence intervals and accuracy metrics (MAE, RMSE, R²).
+3. **Route Commute Time Benchmarks**: Origin-destination travel duration estimator across key Sydney corridors (Parramatta → Central, Chatswood → Central, Airport → Central, Bondi → Town Hall, Penrith → Central, etc.).
+4. **Interactive Dynamic Filters**: Filter dashboard views by **Transport Mode**, **Sydney Region**, **Time Window**, and **Occupancy Risk State**.
+5. **Obsidian-Emerald-Cyan Theme**: Deep Obsidian Midnight (`#0B0F19`) background featuring **Neon Emerald** (`#10B981`), **Electric Cyan** (`#06B6D4`), **Deep Violet** (`#8B5CF6`), and **Sunset Rose** (`#F43F5E`) Glassmorphism cards.
+6. **8 KPI Cards & 7 Visual Charts**:
+   - Active Fleet, Fleet Load Factor %, On-Time Performance (OTP %), Network Speed (km/h), Peak Congestion Hub, ML Next-Hour Forecast, Parramatta → Central Commute Time Benchmark, High Delay Alerts.
+   - Sydney Geospatial Movement Map, ML Forecast Plot, Route Commute Duration Estimator, 24H Heatmap Matrix, Speed Profiles, Fleet Occupancy Donut, Interchange Rankings.
 
 ---
 
 ## 📂 Project Structure
 
 ```
-├── collector.py                     # TfNSW API client & data fetcher
-├── db.py                            # SQLite database schema, connection, & seed engine
+├── collector.py                     # Multi-endpoint TfNSW API client & data fetcher
+├── db.py                            # SQLite database schema (20 hubs, route benchmarks, ML forecasts)
+├── ml_models.py                     # Scikit-learn time-series forecasting & commute route estimator
 ├── analytics.py                     # Pandas aggregation & statistical query functions
-├── dashboard.py                     # Plotly figure generator module
+├── dashboard.py                     # Plotly figure generator module (Obsidian-Emerald-Cyan theme)
 ├── app.py                           # Dashboard builder, HTML generator & web server
 ├── sydney_commute.db                # SQLite database storing snapshots & foot traffic
 ├── sydney_commute_dashboard.html    # Standalone interactive Plotly HTML dashboard
 ├── index.html                       # Published entry point for GitHub Pages
-├── requirements.txt                 # Python dependencies
+├── requirements.txt                 # Python dependencies (scikit-learn, pandas, plotly, etc.)
 ├── .gitignore                       # Git ignore file
 ├── .github/
 │   └── workflows/
@@ -47,64 +48,11 @@ The system periodically pulls GTFS-Realtime vehicle position feeds (Sydney Train
 
 ## 🚀 How to Deploy to `vikram071/Sydney_foottraffic`
 
-### Step 1: Push Code to GitHub
-Run the following commands in your terminal:
-
 ```bash
-git init
 git add .
-git commit -m "feat: 30-min TfNSW live data collector, SQLite DB, and Plotly dashboard"
-git branch -M main
-git remote add origin https://github.com/vikram071/Sydney_foottraffic.git
-git push -u origin main
+git commit -m "feat: complete multi-endpoint TfNSW platform with ML forecasting and route benchmarks"
+git push origin main
 ```
-
----
-
-### Step 2: Configure TfNSW API Key Secret in GitHub
-1. Go to [https://github.com/vikram071/Sydney_foottraffic/settings/secrets/actions](https://github.com/vikram071/Sydney_foottraffic/settings/secrets/actions)
-2. Click **New repository secret**.
-3. **Name**: `TFNSW_API_KEY`
-4. **Secret**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJCb3dUU0Z5dEFIWnVpYlZyaGg0RUdlMmtXRzZKLVZMai1HYUFBOENKb2hNIiwiaWF0IjoxNzg2MjU0MDU5fQ.2G96XQVBv-OXBlsiJqKW7IumCdXtCTokaMo7uvIPK_U`
-5. Click **Add secret**.
-
----
-
-### Step 3: Enable GitHub Pages Deployment
-1. Go to [https://github.com/vikram071/Sydney_foottraffic/settings/pages](https://github.com/vikram071/Sydney_foottraffic/settings/pages)
-2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
-3. Save changes.
-
-Your live dashboard will automatically be published and refreshed every 30 minutes at:  
-👉 **[https://vikram071.github.io/Sydney_foottraffic/](https://vikram071.github.io/Sydney_foottraffic/)**
-
----
-
-## 💻 Local Usage
-
-### Run Polling Manually
-```bash
-python collector.py
-```
-
-### Generate Dashboard HTML
-```bash
-python app.py
-```
-
-### Launch Local Web Server
-```bash
-python app.py --serve --port 8050
-```
-Open `http://localhost:8050` in your browser.
-
----
-
-## 📊 Database Schema (`sydney_commute.db`)
-
-- **`snapshots`**: `(id, timestamp, run_type, total_vehicles, total_stations, status)`
-- **`vehicle_occupancy`**: `(id, snapshot_id, timestamp, vehicle_id, mode, route_id, latitude, longitude, speed, occupancy_status, occupancy_score, trip_id)`
-- **`station_foot_traffic`**: `(id, snapshot_id, timestamp, station_id, station_name, latitude, longitude, mode, scheduled_departures, delayed_departures, avg_delay_sec, foot_traffic_index, status_level)`
 
 ---
 
