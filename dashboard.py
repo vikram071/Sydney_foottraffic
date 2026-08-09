@@ -99,7 +99,7 @@ def build_sydney_foot_traffic_map(vehicle_df, station_df):
             center=dict(lat=-33.8688, lon=151.2093),
             zoom=10.5
         ),
-        margin=dict(l=0, r=0, t=32, b=0),
+        margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
@@ -110,11 +110,7 @@ def build_sydney_foot_traffic_map(vehicle_df, station_df):
             bgcolor="rgba(11, 15, 25, 0.85)",
             bordercolor="rgba(255, 255, 255, 0.1)"
         ),
-        title=dict(
-            text="<b>Sydney Live Geospatial Transport & Interchange Network</b>",
-            x=0.02, y=0.98,
-            font=dict(size=16, color="#06B6D4")
-        )
+        transition=dict(duration=500, easing="cubic-in-out")
     )
 
     return fig
@@ -168,22 +164,15 @@ def build_ml_time_series_forecast_chart(pred_df, metrics):
         marker=dict(size=7, color="#8B5CF6", symbol="diamond")
     ))
 
-    mae = metrics.get("mae", 2.1)
-    rmse = metrics.get("rmse", 2.8)
-    r2 = metrics.get("r2", 0.94)
-
     fig.update_layout(
-        title=dict(
-            text=f"<b>ML 24-Hour Time-Series Traffic Forecast</b> <span style='font-size:12px; color:#10B981;'>(Ridge Regression | MAE: {mae} | RMSE: {rmse} | R²: {r2})</span>",
-            font=dict(size=14, color="#06B6D4")
-        ),
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=30, r=30, t=40, b=30),
+        margin=dict(l=40, r=30, t=20, b=35),
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         xaxis=dict(title="Hour of Day", gridcolor=GRID_COLOR),
         yaxis=dict(title="Foot Traffic Index (0-100)", gridcolor=GRID_COLOR),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        transition=dict(duration=500, easing="cubic-in-out")
     )
     return fig
 
@@ -212,15 +201,15 @@ def build_route_commute_estimator_chart(route_df):
     ))
 
     fig.update_layout(
-        title=dict(text="<b>Sydney Commute Duration Benchmarks by Route Corridor</b>", font=dict(size=14, color="#06B6D4")),
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=30, r=30, t=20, b=35),
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         barmode="stack",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         xaxis=dict(title="Travel Time (Minutes)", gridcolor=GRID_COLOR),
-        yaxis=dict(autorange="reversed")
+        yaxis=dict(autorange="reversed"),
+        transition=dict(duration=500, easing="cubic-in-out")
     )
     return fig
 
@@ -260,13 +249,13 @@ def build_hourly_commute_trends_chart(trends_df):
     )
 
     fig.update_layout(
-        title=dict(text="<b>24-Hour Sydney Commute Foot Traffic & Delays</b>", font=dict(size=14, color="#06B6D4")),
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=30, r=30, t=40, b=30),
+        margin=dict(l=40, r=40, t=20, b=35),
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         xaxis=dict(title="Hour of Day", gridcolor=GRID_COLOR),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        transition=dict(duration=500, easing="cubic-in-out")
     )
 
     fig.update_yaxes(title_text="Foot Traffic Index (0-100)", secondary_y=False, gridcolor=GRID_COLOR)
@@ -285,18 +274,18 @@ def build_congestion_heatmap_matrix_chart(pivot_df):
         x=pivot_df.columns,
         y=pivot_df.index,
         colorscale="Viridis",
-        colorbar=dict(title="Foot Traffic Index", len=0.8),
+        colorbar=dict(title="Foot Traffic", len=0.85),
         hovertemplate="Station: <b>%{y}</b><br>Hour: <b>%{x}</b><br>Foot Traffic: <b>%{z:.1f}</b><extra></extra>"
     ))
 
     fig.update_layout(
-        title=dict(text="<b>24-Hour Sydney Station Congestion Heatmap Matrix</b>", font=dict(size=14, color="#06B6D4")),
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=30, r=30, t=40, b=30),
+        margin=dict(l=30, r=30, t=20, b=35),
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         xaxis=dict(title="Hour of Day", gridcolor=GRID_COLOR),
-        yaxis=dict(title="", gridcolor=GRID_COLOR, autorange="reversed")
+        yaxis=dict(title="", gridcolor=GRID_COLOR, autorange="reversed"),
+        transition=dict(duration=500, easing="cubic-in-out")
     )
     return fig
 
@@ -311,7 +300,7 @@ def build_mode_capacity_donut_chart(mode_df):
     fig = gg.Figure(data=[gg.Pie(
         labels=mode_df["mode"],
         values=mode_df["vehicle_count"],
-        hole=0.6,
+        hole=0.62,
         marker=dict(colors=colors, line=dict(color="#0B0F19", width=2)),
         textinfo="percent+label",
         hoverinfo="label+value+percent",
@@ -319,12 +308,12 @@ def build_mode_capacity_donut_chart(mode_df):
     )])
 
     fig.update_layout(
-        title=dict(text="<b>Fleet Distribution by Transport Mode</b>", font=dict(size=14, color="#06B6D4")),
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=20, r=20, t=20, b=20),
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
-        showlegend=False
+        showlegend=False,
+        transition=dict(duration=500, easing="cubic-in-out")
     )
     return fig
 
@@ -351,14 +340,14 @@ def build_mode_speed_comparison_chart(mode_df):
     ))
 
     fig.update_layout(
-        title=dict(text="<b>Mode Speed Profile Comparison (km/h)</b>", font=dict(size=14, color="#06B6D4")),
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=30, r=30, t=20, b=35),
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         barmode="group",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        yaxis=dict(title="Speed (km/h)", gridcolor=GRID_COLOR)
+        yaxis=dict(title="Speed (km/h)", gridcolor=GRID_COLOR),
+        transition=dict(duration=500, easing="cubic-in-out")
     )
     return fig
 
@@ -383,12 +372,12 @@ def build_top_interchanges_ranking_chart(station_df):
     ))
 
     fig.update_layout(
-        title=dict(text="<b>Top Busiest Sydney Interchange Hubs</b>", font=dict(size=14, color="#06B6D4")),
         paper_bgcolor=PAPER_BG,
         plot_bgcolor=PLOT_BG,
-        margin=dict(l=20, r=20, t=40, b=20),
+        margin=dict(l=30, r=30, t=20, b=35),
         font=dict(color="#F8FAFC", family=FONT_FAMILY),
         xaxis=dict(title="Foot Traffic Index (0-100)", range=[0, 115], gridcolor=GRID_COLOR),
-        yaxis=dict(autorange="reversed")
+        yaxis=dict(autorange="reversed"),
+        transition=dict(duration=500, easing="cubic-in-out")
     )
     return fig
