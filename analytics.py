@@ -4,7 +4,7 @@ from db import get_db_connection, DB_FILE
 
 
 def get_latest_metrics(db_path=DB_FILE):
-    """Retrieves comprehensive top-level summary metrics for 8 dashboard KPI cards."""
+    """Retrieves comprehensive top-level summary metrics for dashboard KPI cards."""
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
@@ -188,3 +188,12 @@ def get_station_congestion_heatmap_df(db_path=DB_FILE):
 
     pivot_df = df.pivot(index="station_name", columns="hour_of_day", values="foot_traffic_index").fillna(0)
     return pivot_df
+
+
+def get_service_alerts_df(db_path=DB_FILE):
+    """Returns pandas DataFrame of active service disruption alerts."""
+    conn = get_db_connection(db_path)
+    query = "SELECT * FROM service_alerts ORDER BY id DESC LIMIT 20"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df

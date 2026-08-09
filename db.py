@@ -125,6 +125,19 @@ def init_db(db_path=DB_FILE):
             FOREIGN KEY (snapshot_id) REFERENCES snapshots (id)
         );
 
+        CREATE TABLE IF NOT EXISTS service_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            alert_id TEXT NOT NULL,
+            mode TEXT NOT NULL,
+            header_text TEXT,
+            description_text TEXT,
+            cause TEXT,
+            effect TEXT,
+            severity TEXT DEFAULT 'MEDIUM',
+            updated_at TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS ml_forecasts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             model_name TEXT NOT NULL,
@@ -143,6 +156,7 @@ def init_db(db_path=DB_FILE):
         CREATE INDEX IF NOT EXISTS idx_vehicle_mode ON vehicle_occupancy (mode);
         CREATE INDEX IF NOT EXISTS idx_station_timestamp ON station_foot_traffic (timestamp);
         CREATE INDEX IF NOT EXISTS idx_commute_timestamp ON route_commute_times (timestamp);
+        CREATE INDEX IF NOT EXISTS idx_alert_timestamp ON service_alerts (timestamp);
     """)
 
     # Column migrations if table existed previously
@@ -156,7 +170,7 @@ def init_db(db_path=DB_FILE):
 
 
 def seed_baseline_history_if_empty(db_path=DB_FILE):
-    """Populates rich 24-hour Sydney commute, route duration, and ML baseline patterns if DB is new/empty."""
+    """Populates rich 24-hour Sydney commute, route duration, service alerts, and ML baseline patterns if DB is new/empty."""
     init_db(db_path)
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
@@ -262,6 +276,22 @@ def seed_baseline_history_if_empty(db_path=DB_FILE):
                 corr["dist_km"], corr["base_time_min"], actual_time, delay_min, cong_factor
             ))
 
+        # Seed sample Service Alerts
+        alerts_seed = [
+            ("Sydney Trains", "T1 Western Line Track Maintenance", "Buses replace trains between Blacktown and Parramatta due to planned trackwork.", "MAINTENANCE", "REDUCED_SERVICE", "MEDIUM"),
+            ("Sydney Metro", "M1 Northwest Metro Peak Frequency Upgrade", "High frequency 4-minute service active through Chatswood to Sydenham corridor.", "OPERATIONAL_UPDATE", "ADDITIONAL_SERVICE", "INFO"),
+            ("Sydney Ferries", "F1 Manly Ferry Swell Advisory", "F1 Ferries operating at reduced speed near Sydney Heads due to ocean swells.", "WEATHER", "DELAY", "MEDIUM"),
+            ("Light Rail", "L2 CBD Light Rail Signal Optimization", "Signal priority active along George St corridor during PM Peak hours.", "SYSTEM_UPDATE", "NO_IMPACT", "INFO")
+        ]
+        for a_mode, a_head, a_desc, a_cause, a_effect, a_sev in alerts_seed:
+            cursor.execute("""
+                INSERT INTO service_alerts
+                (timestamp, alert_id, mode, header_text, description_text, cause, effect, severity, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                snapshot_time, f"ALT-{random.randint(100, 999)}", a_mode, a_head, a_desc, a_cause, a_effect, a_sev, snapshot_time
+            ))
+
         cursor.execute(
             "UPDATE snapshots SET total_vehicles = ?, total_stations = ? WHERE id = ?",
             (num_vehicles, len(SYDNEY_HUBS), snapshot_id)
@@ -269,7 +299,7 @@ def seed_baseline_history_if_empty(db_path=DB_FILE):
 
     conn.commit()
     conn.close()
-    print("Rich baseline history & commute benchmarks seeded successfully.")
+    print("Rich baseline history, service alerts & commute benchmarks seeded successfully.")
 
 
 if __name__ == "__main__":

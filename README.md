@@ -1,60 +1,68 @@
-# Sydney Transport, Foot Traffic & ML Analytics Intelligence Platform
+# Sydney Transport, Foot Traffic & ML Analytics Platform
 
-An enterprise data engineering and machine learning platform for Transport for NSW (TfNSW) real-time public transport feeds and spatial analytics.
+A real-time data intelligence and machine learning analytics platform for Sydney's public transport network, powered by **Transport for NSW (TfNSW) Open Data APIs**, **SQLite**, **Scikit-Learn**, and **Streamlit**.
 
-The system polls GTFS-Realtime feeds (Sydney Trains, Metro, Buses, Ferries, Light Rail) and Departure Monitors across 20+ Sydney hubs, stores structured metrics in a SQLite database (`sydney_commute.db`), trains scikit-learn time-series forecasting models, automates execution every 30 minutes via GitHub Actions, and renders an interactive Plotly dashboard hosted live on **GitHub Pages**.
-
-🔗 **Live GitHub Repository**: [https://github.com/vikram071/Sydney_foottraffic](https://github.com/vikram071/Sydney_foottraffic)  
-🌐 **Live Dashboard URL**: [https://vikram071.github.io/Sydney_foottraffic/](https://vikram071.github.io/Sydney_foottraffic/)
-
----
-
-## 🌟 Key Features
-
-1. **Multi-Endpoint TfNSW Integration**: Real-time vehicle positions, occupancy load factors, speeds, departure monitor foot traffic across 20+ Sydney transport hubs.
-2. **Machine Learning Time-Series Forecasting (`ml_models.py`)**:
-   - Trains Ridge Regression models on historical station foot traffic and departure delay curves.
-   - Generates 24-hour forward predictions with 95% confidence intervals and accuracy metrics (MAE, RMSE, R²).
-3. **Route Commute Time Benchmarks**: Origin-destination travel duration estimator across key Sydney corridors (Parramatta → Central, Chatswood → Central, Airport → Central, Bondi → Town Hall, Penrith → Central, etc.).
-4. **Interactive Dynamic Filters**: Filter dashboard views by **Transport Mode**, **Sydney Region**, **Time Window**, and **Occupancy Risk State**.
-5. **Obsidian-Emerald-Cyan Theme**: Deep Obsidian Midnight (`#0B0F19`) background featuring **Neon Emerald** (`#10B981`), **Electric Cyan** (`#06B6D4`), **Deep Violet** (`#8B5CF6`), and **Sunset Rose** (`#F43F5E`) Glassmorphism cards.
-6. **8 KPI Cards & 7 Visual Charts**:
-   - Active Fleet, Fleet Load Factor %, On-Time Performance (OTP %), Network Speed (km/h), Peak Congestion Hub, ML Next-Hour Forecast, Parramatta → Central Commute Time Benchmark, High Delay Alerts.
-   - Sydney Geospatial Movement Map, ML Forecast Plot, Route Commute Duration Estimator, 24H Heatmap Matrix, Speed Profiles, Fleet Occupancy Donut, Interchange Rankings.
+![Streamlit Platform](https://img.shields.io/badge/Framework-Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)
+![Python Version](https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge&logo=python&logoColor=white)
+![TfNSW API](https://img.shields.io/badge/Data-TfNSW%20Open%20Data-06B6D4?style=for-the-badge)
 
 ---
 
-## 📂 Project Structure
+## 🌟 Platform Highlights
 
-```
-├── collector.py                     # Multi-endpoint TfNSW API client & data fetcher
-├── db.py                            # SQLite database schema (20 hubs, route benchmarks, ML forecasts)
-├── ml_models.py                     # Scikit-learn time-series forecasting & commute route estimator
-├── analytics.py                     # Pandas aggregation & statistical query functions
-├── dashboard.py                     # Plotly figure generator module (Obsidian-Emerald-Cyan theme)
-├── app.py                           # Dashboard builder, HTML generator & web server
-├── sydney_commute.db                # SQLite database storing snapshots & foot traffic
-├── sydney_commute_dashboard.html    # Standalone interactive Plotly HTML dashboard
-├── index.html                       # Published entry point for GitHub Pages
-├── requirements.txt                 # Python dependencies (scikit-learn, pandas, plotly, etc.)
-├── .gitignore                       # Git ignore file
-├── .github/
-│   └── workflows/
-│       └── daily_poll.yml           # GitHub Actions 30-minute sync & Pages deploy workflow
-└── README.md                        # Documentation
-```
+- **Multi-Endpoint TfNSW Poller**: Real-time feeds across GTFS-Realtime Vehicle Positions, Trip Updates, Service Alerts, and Departure Monitors for 20 major Sydney hubs.
+- **Streamlit Web Application (`streamlit_app.py`)**: Glassmorphic Obsidian dark theme with 5 interactive analytical tabs.
+- **Power BI Data Slicers**: Filter in real time by Transport Mode, Sydney Region, Time Window, and Occupancy Risk Level.
+- **Machine Learning Time-Series Model**: Scikit-Learn Ridge Regression forecasting Sydney foot traffic curves with 95% Confidence Interval bands.
+- **3D Geospatial Operations**: PyDeck 3D map visualizing live vehicle markers and interchange station foot traffic indices.
 
 ---
 
-## 🚀 How to Deploy to `vikram071/Sydney_foottraffic`
+## 🚀 Running the Streamlit App Locally
 
-```bash
-git add .
-git commit -m "feat: complete multi-endpoint TfNSW platform with ML forecasting and route benchmarks"
-git push origin main
-```
+1. **Activate Environment & Install Dependencies**:
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+2. **Launch Streamlit Web Dashboard**:
+   ```bash
+   streamlit run streamlit_app.py
+   ```
+   Or run using python launcher:
+   ```bash
+   python app.py
+   ```
+
+3. **Access Dashboard**:
+   Open `http://localhost:8050` or `http://localhost:8501` in your browser.
 
 ---
 
-## 📜 License
-MIT License
+## 📊 Streamlit App Structure (`streamlit_app.py`)
+
+- **Tab 1: 🌐 Live Geo Operations**: PyDeck 3D map & active vehicle counters.
+- **Tab 2: 🤖 ML & Predictive Traffic Forecasting**: Scikit-learn Ridge model prediction curves & 95% confidence bands.
+- **Tab 3: ⏱️ Commute Benchmarks & Speed Profiles**: Origin-destination corridor travel time benchmarks & speed vectors.
+- **Tab 4: 🔥 Station Foot Traffic Matrix**: 24h station congestion heatmap matrix & top busiest interchange rankings.
+- **Tab 5: ⚠️ TfNSW Alerts & API Health**: Real-time service disruption feed & API endpoint status monitor.
+
+---
+
+## 🗄️ Database Schema & Architecture
+
+The platform stores historical time-series data in `sydney_commute.db` across 5 primary tables:
+- `snapshots`: System execution log & aggregate fleet metrics.
+- `vehicle_occupancy`: Latitude, longitude, speed, and occupancy load factor per vehicle.
+- `station_foot_traffic`: Departure counts, delays, and foot traffic index across 20 Sydney hubs.
+- `route_commute_times`: Baseline vs actual travel times on top commute corridors.
+- `service_alerts`: Real-time TfNSW service disruption notices.
+- `ml_forecasts`: Trained Ridge model weights, MAE, RMSE, and R² evaluation metrics.
+
+---
+
+## ⚙️ Automated GitHub Actions Polling
+
+The automated poller runs every 30 minutes via `.github/workflows/daily_poll.yml` to pull live TfNSW data into `sydney_commute.db`.
