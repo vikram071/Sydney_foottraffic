@@ -441,7 +441,7 @@ with tab2:
         view_state = pdk.ViewState(latitude=-33.8688, longitude=151.2093, zoom=10.2, pitch=35)
         st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state, tooltip={"text": "{mode}\nID: {vehicle_id}\nOccupancy: {occupancy_status} ({occupancy_score}%)\nSpeed: {speed} km/h"}))
 
-    with map_map_col2 := map_col2:
+    with map_col2:
         st.markdown("#### Mode Legend")
         for m_name, hex_c in MODE_HEX.items():
             cnt = len(v_df[v_df["mode"] == m_name]) if not v_df.empty else 0
