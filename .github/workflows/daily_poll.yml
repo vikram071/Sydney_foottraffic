@@ -35,10 +35,10 @@ jobs:
         run: |
           python collector.py
 
-      - name: Commit and Push Updated Database Snapshot & Pages Index
+      - name: Commit and Push Updated Database Snapshot & Power BI Web CSVs
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action Bot"
-          git add sydney_commute.db candidates.db index.html 2>/dev/null || true
+          git add sydney_commute.db candidates.db index.html data/ 2>/dev/null || true
           git commit -m "auto: 30-min TfNSW foot traffic DB snapshot update [skip ci]" || echo "No changes to commit"
           git push origin HEAD:${{ github.ref_name }}

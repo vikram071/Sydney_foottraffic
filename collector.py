@@ -5,6 +5,7 @@ import random
 import urllib.request
 import urllib.parse
 from datetime import datetime
+import pandas as pd
 from google.transit import gtfs_realtime_pb2
 
 from db import init_db, get_db_connection, SYDNEY_HUBS, SYDNEY_CORRIDORS, OCCUPANCY_MAP, DB_FILE
@@ -262,6 +263,32 @@ def compute_route_commute_times(station_records):
     return route_records
 
 
+def export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes):
+    """Exports live CSV & JSON files for 1-click Power BI Web Connector integration."""
+    os.makedirs("data", exist_ok=True)
+
+    if vehicles:
+        pd.DataFrame(vehicles).to_csv("data/latest_fleet.csv", index=False)
+    if trip_updates:
+        pd.DataFrame(trip_updates).to_csv("data/latest_trip_updates.csv", index=False)
+    if stations:
+        pd.DataFrame(stations).to_csv("data/latest_stations.csv", index=False)
+    if routes:
+        pd.DataFrame(routes).to_csv("data/latest_commute_routes.csv", index=False)
+
+    summary = {
+        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "total_vehicles": len(vehicles),
+        "total_trip_updates": len(trip_updates),
+        "total_stations": len(stations),
+        "total_routes": len(routes)
+    }
+    with open("data/summary.json", "w") as f:
+        json.dump(summary, f, indent=2)
+
+    print("  [+] Exported CSV & JSON endpoints for Power BI Web Connector under data/")
+
+
 def run_polling_job(db_path=DB_FILE):
     """Executes a full live data polling cycle across all TfNSW endpoints and writes to Star Schema SQLite."""
     print("==================================================")
@@ -283,6 +310,9 @@ def run_polling_job(db_path=DB_FILE):
 
     print("\nComputing real-time Sydney route commute durations...")
     routes = compute_route_commute_times(stations)
+
+    # Export web CSVs for Power BI Web Connector
+    export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes)
 
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
