@@ -1,7 +1,9 @@
 import os
 import sys
 import json
+import time
 import random
+import argparse
 import urllib.request
 import urllib.parse
 from datetime import datetime
@@ -377,5 +379,24 @@ def run_polling_job(db_path=DB_FILE):
     return snapshot_id
 
 
+def run_high_frequency_polling(iterations=3, delay_sec=90, db_path=DB_FILE):
+    """Executes multiple polling cycles spaced by delay_sec within a single execution batch."""
+    print(f"Starting High-Frequency Polling Batch ({iterations} cycles spaced by {delay_sec}s)...")
+    for i in range(iterations):
+        print(f"\n--- Polling Iteration {i+1} of {iterations} ---")
+        run_polling_job(db_path)
+        if i < iterations - 1:
+            print(f"Sleeping {delay_sec} seconds until next live poll...")
+            time.sleep(delay_sec)
+
+
 if __name__ == "__main__":
-    run_polling_job()
+    parser = argparse.ArgumentParser(description="TfNSW Sydney High-Frequency Live Data Poller")
+    parser.add_argument("--iterations", type=int, default=1, help="Number of polling iterations per run batch")
+    parser.add_argument("--delay", type=int, default=90, help="Delay in seconds between polling iterations")
+    args = parser.parse_args()
+
+    if args.iterations > 1:
+        run_high_frequency_polling(iterations=args.iterations, delay_sec=args.delay)
+    else:
+        run_polling_job()

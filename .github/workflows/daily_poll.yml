@@ -1,9 +1,9 @@
-name: TfNSW Sydney Foot Traffic 30-Min Automated Data Ingestion
+name: TfNSW Sydney High-Frequency Live Data Ingestion (5-Min Sync)
 
 on:
   schedule:
-    # Run automatically every 30 minutes
-    - cron: '*/30 * * * *'
+    # Run automatically every 5 minutes
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     # Allows manual trigger anytime from GitHub Actions tab
 
@@ -29,16 +29,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run TfNSW 30-Minute Live Data Collector
+      - name: Run TfNSW High-Frequency Live Data Collector (3 Iterations per Run)
         env:
           TFNSW_API_KEY: ${{ secrets.TFNSW_API_KEY }}
         run: |
-          python collector.py
+          python collector.py --iterations 3 --delay 75
 
       - name: Commit and Push Updated Database Snapshot & Power BI Web CSVs
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action Bot"
           git add sydney_commute.db candidates.db index.html data/ 2>/dev/null || true
-          git commit -m "auto: 30-min TfNSW foot traffic DB snapshot update [skip ci]" || echo "No changes to commit"
+          git commit -m "auto: 5-min TfNSW foot traffic & fleet batch update [skip ci]" || echo "No changes to commit"
           git push origin HEAD:${{ github.ref_name }}

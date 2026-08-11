@@ -1,5 +1,4 @@
 station_id,station_name,region,latitude,longitude,mode,scheduled_departures,delayed_departures,cancelled_departures,avg_delay_sec,max_delay_sec,foot_traffic_index,status_level
-10101100,Central Station,CBD,-33.884024,151.206203,Train / Metro / Light Rail,0,0,0,0.0,0.0,0.0,LOW
 10101101,Town Hall Station,CBD,-33.873212,151.206354,Train / Light Rail,0,0,0,0.0,0.0,0.0,LOW
 10101102,Wynyard Station,CBD,-33.86591,151.205755,Train / Light Rail,0,0,0,0.0,0.0,0.0,LOW
 10101103,Circular Quay Wharf & Station,CBD,-33.86144,151.21074,Ferry / Train / Light Rail,0,0,0,0.0,0.0,0.0,LOW
@@ -17,6 +16,4 @@ station_id,station_name,region,latitude,longitude,mode,scheduled_departures,dela
 10101115,Penrith Station,Western Sydney,-33.7507,150.6975,Train / Bus,0,0,0,0.0,0.0,0.0,LOW
 10101116,Hornsby Station,North Shore,-33.7032,151.0984,Train / Bus,0,0,0,0.0,0.0,0.0,LOW
 10101117,Liverpool Interchange,Western Sydney,-33.9238,150.9254,Train / Bus,0,0,0,0.0,0.0,0.0,LOW
-10101118,Hurstville Station,South/East,-33.9675,151.103,Train / Bus,0,0,0,0.0,0.0,0.0,LOW
-10101119,Epping Station,North Shore,-33.7728,151.1189,Train / Metro,0,0,0,0.0,0.0,0.0,LOW
 10101120,Sydney Olympic Park Station,Inner West,-33.8436,151.0694,Train / Bus,0,0,0,0.0,0.0,0.0,LOW
