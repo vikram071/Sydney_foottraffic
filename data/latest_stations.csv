@@ -1,20 +1,22 @@
 pulled_at,pulled_date,pulled_time,station_id,station_name,region,latitude,longitude,mode,scheduled_departures,delayed_departures,cancelled_departures,avg_delay_sec,max_delay_sec,foot_traffic_index,status_level,on_time_performance_pct
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101100,Central Station,CBD,-33.884024,151.206203,Train / Metro / Light Rail,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101101,Town Hall Station,CBD,-33.873212,151.206354,Train / Light Rail,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101102,Wynyard Station,CBD,-33.86591,151.205755,Train / Light Rail,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101103,Circular Quay Wharf & Station,CBD,-33.86144,151.21074,Ferry / Train / Light Rail,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101104,Parramatta Station & Bus Interchange,Western Sydney,-33.817028,151.002884,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101105,Chatswood Interchange,North Shore,-33.7972,151.1812,Train / Metro / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101106,Bondi Junction Interchange,South/East,-33.8915,151.2478,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101107,North Sydney Station,North Shore,-33.8398,151.2066,Train / Metro,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101108,Strathfield Station,Inner West,-33.8711,151.0906,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101109,Macquarie University Station,North Shore,-33.777,151.1141,Metro / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101110,Sydney Airport T1 International,Airport Corridor,-33.9388,151.1644,Train,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101111,Sydney Airport T2/T3 Domestic,Airport Corridor,-33.9333,151.1804,Train,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101112,Barangaroo Ferry Wharf,CBD,-33.864,151.2012,Ferry,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101113,Redfern Station,Inner West,-33.8924,151.1996,Train,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101114,Blacktown Interchange,Western Sydney,-33.769,150.9073,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101115,Penrith Station,Western Sydney,-33.7507,150.6975,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101116,Hornsby Station,North Shore,-33.7032,151.0984,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101117,Liverpool Interchange,Western Sydney,-33.9238,150.9254,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
-2026-08-12 02:00:29,2026-08-12,02:00:29,10101120,Sydney Olympic Park Station,Inner West,-33.8436,151.0694,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101100,Central Station,CBD,-33.884024,151.206203,Train / Metro / Light Rail,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101101,Town Hall Station,CBD,-33.873212,151.206354,Train / Light Rail,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101102,Wynyard Station,CBD,-33.86591,151.205755,Train / Light Rail,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101103,Circular Quay Wharf & Station,CBD,-33.86144,151.21074,Ferry / Train / Light Rail,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101104,Parramatta Station & Bus Interchange,Western Sydney,-33.817028,151.002884,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101105,Chatswood Interchange,North Shore,-33.7972,151.1812,Train / Metro / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101106,Bondi Junction Interchange,South/East,-33.8915,151.2478,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101107,North Sydney Station,North Shore,-33.8398,151.2066,Train / Metro,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101108,Strathfield Station,Inner West,-33.8711,151.0906,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101109,Macquarie University Station,North Shore,-33.777,151.1141,Metro / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101110,Sydney Airport T1 International,Airport Corridor,-33.9388,151.1644,Train,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101111,Sydney Airport T2/T3 Domestic,Airport Corridor,-33.9333,151.1804,Train,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101112,Barangaroo Ferry Wharf,CBD,-33.864,151.2012,Ferry,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101113,Redfern Station,Inner West,-33.8924,151.1996,Train,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101114,Blacktown Interchange,Western Sydney,-33.769,150.9073,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101115,Penrith Station,Western Sydney,-33.7507,150.6975,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101116,Hornsby Station,North Shore,-33.7032,151.0984,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101117,Liverpool Interchange,Western Sydney,-33.9238,150.9254,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101118,Hurstville Station,South/East,-33.9675,151.103,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101119,Epping Station,North Shore,-33.7728,151.1189,Train / Metro,0,0,0,0.0,0.0,0.0,LOW,0.0
+2026-08-12 02:02:10,2026-08-12,02:02:10,10101120,Sydney Olympic Park Station,Inner West,-33.8436,151.0694,Train / Bus,0,0,0,0.0,0.0,0.0,LOW,0.0
