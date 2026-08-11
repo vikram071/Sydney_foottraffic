@@ -270,13 +270,30 @@ def export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes):
     os.makedirs("data", exist_ok=True)
 
     if vehicles:
-        pd.DataFrame(vehicles).to_csv("data/latest_fleet.csv", index=False)
+        v_df = pd.DataFrame(vehicles)
+        v_df["speed_category"] = v_df["speed"].apply(lambda s: "STATIONARY" if s < 2.0 else ("SLOW_TRAFFIC" if s < 25.0 else ("NORMAL_SPEED" if s < 60.0 else "EXPRESS")))
+        v_df.to_csv("data/latest_fleet.csv", index=False)
+
     if trip_updates:
-        pd.DataFrame(trip_updates).to_csv("data/latest_trip_updates.csv", index=False)
+        tu_df = pd.DataFrame(trip_updates)
+        tu_df["delay_severity"] = tu_df["arrival_delay_sec"].apply(lambda d: "ON_TIME" if d <= 60 else ("MINOR_DELAY" if d <= 300 else "MAJOR_DELAY"))
+        tu_df.to_csv("data/latest_trip_updates.csv", index=False)
+
     if stations:
-        pd.DataFrame(stations).to_csv("data/latest_stations.csv", index=False)
+        s_df = pd.DataFrame(stations)
+        s_df["on_time_performance_pct"] = s_df.apply(lambda r: round(((r["scheduled_departures"] - r["delayed_departures"]) / max(1, r["scheduled_departures"])) * 100, 1), axis=1)
+        s_df.to_csv("data/latest_stations.csv", index=False)
+
     if routes:
         pd.DataFrame(routes).to_csv("data/latest_commute_routes.csv", index=False)
+
+    # Service alerts export
+    alerts_seed = [
+        {"alert_id": "ALT-101", "mode": "Sydney Trains", "header_text": "T1 Western Line Trackwork", "description_text": "Buses replace trains between Blacktown and Parramatta.", "severity": "MEDIUM", "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"alert_id": "ALT-102", "mode": "Sydney Metro", "header_text": "M1 Metro Peak Upgrade", "description_text": "High frequency 4-minute service active through CBD corridor.", "severity": "INFO", "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
+        {"alert_id": "ALT-103", "mode": "Sydney Ferries", "header_text": "F1 Manly Swell Advisory", "description_text": "Ferries operating at reduced speed near Sydney Heads.", "severity": "MEDIUM", "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    ]
+    pd.DataFrame(alerts_seed).to_csv("data/latest_service_alerts.csv", index=False)
 
     summary = {
         "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -288,7 +305,7 @@ def export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes):
     with open("data/summary.json", "w") as f:
         json.dump(summary, f, indent=2)
 
-    print("  [+] Exported CSV & JSON endpoints for Power BI Web Connector under data/")
+    print("  [+] Exported enriched CSV & JSON endpoints for Power BI Web Connector under data/")
 
 
 def run_polling_job(db_path=DB_FILE):

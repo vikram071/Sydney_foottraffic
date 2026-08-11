@@ -1,0 +1,4 @@
+alert_id,mode,header_text,description_text,severity,updated_at
+ALT-101,Sydney Trains,T1 Western Line Trackwork,Buses replace trains between Blacktown and Parramatta.,MEDIUM,2026-08-12 01:58:30
+ALT-102,Sydney Metro,M1 Metro Peak Upgrade,High frequency 4-minute service active through CBD corridor.,INFO,2026-08-12 01:58:30
+ALT-103,Sydney Ferries,F1 Manly Swell Advisory,Ferries operating at reduced speed near Sydney Heads.,MEDIUM,2026-08-12 01:58:30
