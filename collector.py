@@ -38,7 +38,7 @@ def get_api_key():
     return os.environ.get("TFNSW_API_KEY", DEFAULT_API_KEY)
 
 
-def fetch_gtfs_realtime_vehicles(api_key):
+def fetch_gtfs_realtime_vehicles(api_key, now_dt):
     """Fetches and parses real-time vehicle positions, bearing, speed, and occupancy from TfNSW GTFS-R feeds."""
     headers = {"Authorization": f"apikey {api_key}"}
     vehicle_records = []
@@ -52,6 +52,10 @@ def fetch_gtfs_realtime_vehicles(api_key):
         5: "FULL",
         6: "NOT_ACCEPTING_PASSENGERS"
     }
+
+    pulled_at = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+    pulled_date = now_dt.strftime("%Y-%m-%d")
+    pulled_time = now_dt.strftime("%H:%M:%S")
 
     for mode, url in GTFS_VEHICLE_ENDPOINTS.items():
         try:
@@ -80,6 +84,9 @@ def fetch_gtfs_realtime_vehicles(api_key):
 
                         if lat and lon and lat != 0 and lon != 0:
                             vehicle_records.append({
+                                "pulled_at": pulled_at,
+                                "pulled_date": pulled_date,
+                                "pulled_time": pulled_time,
                                 "vehicle_id": v_id,
                                 "mode": mode,
                                 "route_id": route_id,
@@ -100,10 +107,14 @@ def fetch_gtfs_realtime_vehicles(api_key):
     return vehicle_records
 
 
-def fetch_gtfs_trip_updates(api_key):
+def fetch_gtfs_trip_updates(api_key, now_dt):
     """Fetches real-time GTFS-R trip update predictions and delays across stop sequences."""
     headers = {"Authorization": f"apikey {api_key}"}
     trip_records = []
+
+    pulled_at = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+    pulled_date = now_dt.strftime("%Y-%m-%d")
+    pulled_time = now_dt.strftime("%H:%M:%S")
 
     for mode, url in GTFS_TRIPUPDATE_ENDPOINTS.items():
         try:
@@ -128,6 +139,9 @@ def fetch_gtfs_trip_updates(api_key):
                             seq = stu.stop_sequence if stu.HasField("stop_sequence") else 0
 
                             trip_records.append({
+                                "pulled_at": pulled_at,
+                                "pulled_date": pulled_date,
+                                "pulled_time": pulled_time,
                                 "trip_id": trip_id,
                                 "route_id": route_id,
                                 "mode": mode,
@@ -147,10 +161,14 @@ def fetch_gtfs_trip_updates(api_key):
     return trip_records
 
 
-def fetch_station_departure_monitors(api_key):
+def fetch_station_departure_monitors(api_key, now_dt):
     """Fetches departure monitor data for 20 Sydney interchanges to calculate foot traffic density."""
     headers = {"Authorization": f"apikey {api_key}", "Accept": "application/json"}
     station_records = []
+
+    pulled_at = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+    pulled_date = now_dt.strftime("%Y-%m-%d")
+    pulled_time = now_dt.strftime("%H:%M:%S")
 
     for hub in SYDNEY_HUBS:
         params = {
@@ -195,7 +213,7 @@ def fetch_station_departure_monitors(api_key):
                 avg_delay = round(sum(delays_sec) / len(delays_sec), 1) if delays_sec else 0.0
                 max_delay = round(max(delays_sec), 1) if delays_sec else 0.0
 
-                hour = datetime.now().hour
+                hour = now_dt.hour
                 is_peak = (7 <= hour <= 9 or 16 <= hour <= 18)
                 peak_bonus = 25 if is_peak else 0
 
@@ -211,6 +229,9 @@ def fetch_station_departure_monitors(api_key):
                     status_lvl = "LOW"
 
                 station_records.append({
+                    "pulled_at": pulled_at,
+                    "pulled_date": pulled_date,
+                    "pulled_time": pulled_time,
                     "station_id": hub["id"],
                     "station_name": hub["name"],
                     "region": hub.get("region", "CBD"),
@@ -231,16 +252,20 @@ def fetch_station_departure_monitors(api_key):
     return station_records
 
 
-def compute_route_commute_times(station_records):
+def compute_route_commute_times(station_records, now_dt):
     """Calculates route commute travel duration and congestion factors across top Sydney corridors."""
     route_records = []
+
+    pulled_at = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+    pulled_date = now_dt.strftime("%Y-%m-%d")
+    pulled_time = now_dt.strftime("%H:%M:%S")
 
     if station_records:
         avg_network_delay_sec = sum(s["avg_delay_sec"] for s in station_records) / len(station_records)
     else:
         avg_network_delay_sec = 45.0
 
-    hour = datetime.now().hour
+    hour = now_dt.hour
     is_peak = (7 <= hour <= 9 or 16 <= hour <= 18)
     peak_multiplier = 1.25 if is_peak else 1.05
 
@@ -250,6 +275,9 @@ def compute_route_commute_times(station_records):
         delay_min = round(max(0.0, actual_time - corr["base_time_min"]), 1)
 
         route_records.append({
+            "pulled_at": pulled_at,
+            "pulled_date": pulled_date,
+            "pulled_time": pulled_time,
             "origin_station_id": corr.get("origin_id", "10101104"),
             "dest_station_id": corr.get("dest_id", "10101100"),
             "origin_name": corr["origin"],
@@ -265,38 +293,49 @@ def compute_route_commute_times(station_records):
     return route_records
 
 
-def export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes):
+def export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes, now_dt):
     """Exports live CSV & JSON files for 1-click Power BI Web Connector integration."""
     os.makedirs("data", exist_ok=True)
+
+    pulled_at = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+    pulled_date = now_dt.strftime("%Y-%m-%d")
+    pulled_time = now_dt.strftime("%H:%M:%S")
 
     if vehicles:
         v_df = pd.DataFrame(vehicles)
         v_df["speed_category"] = v_df["speed"].apply(lambda s: "STATIONARY" if s < 2.0 else ("SLOW_TRAFFIC" if s < 25.0 else ("NORMAL_SPEED" if s < 60.0 else "EXPRESS")))
-        v_df.to_csv("data/latest_fleet.csv", index=False)
+        # Ensure pulled_at columns are leading
+        cols = ["pulled_at", "pulled_date", "pulled_time"] + [c for c in v_df.columns if c not in ["pulled_at", "pulled_date", "pulled_time"]]
+        v_df[cols].to_csv("data/latest_fleet.csv", index=False)
 
     if trip_updates:
         tu_df = pd.DataFrame(trip_updates)
         tu_df["delay_severity"] = tu_df["arrival_delay_sec"].apply(lambda d: "ON_TIME" if d <= 60 else ("MINOR_DELAY" if d <= 300 else "MAJOR_DELAY"))
-        tu_df.to_csv("data/latest_trip_updates.csv", index=False)
+        cols = ["pulled_at", "pulled_date", "pulled_time"] + [c for c in tu_df.columns if c not in ["pulled_at", "pulled_date", "pulled_time"]]
+        tu_df[cols].to_csv("data/latest_trip_updates.csv", index=False)
 
     if stations:
         s_df = pd.DataFrame(stations)
         s_df["on_time_performance_pct"] = s_df.apply(lambda r: round(((r["scheduled_departures"] - r["delayed_departures"]) / max(1, r["scheduled_departures"])) * 100, 1), axis=1)
-        s_df.to_csv("data/latest_stations.csv", index=False)
+        cols = ["pulled_at", "pulled_date", "pulled_time"] + [c for c in s_df.columns if c not in ["pulled_at", "pulled_date", "pulled_time"]]
+        s_df[cols].to_csv("data/latest_stations.csv", index=False)
 
     if routes:
-        pd.DataFrame(routes).to_csv("data/latest_commute_routes.csv", index=False)
+        r_df = pd.DataFrame(routes)
+        cols = ["pulled_at", "pulled_date", "pulled_time"] + [c for c in r_df.columns if c not in ["pulled_at", "pulled_date", "pulled_time"]]
+        r_df[cols].to_csv("data/latest_commute_routes.csv", index=False)
 
-    # Service alerts export
     alerts_seed = [
-        {"alert_id": "ALT-101", "mode": "Sydney Trains", "header_text": "T1 Western Line Trackwork", "description_text": "Buses replace trains between Blacktown and Parramatta.", "severity": "MEDIUM", "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
-        {"alert_id": "ALT-102", "mode": "Sydney Metro", "header_text": "M1 Metro Peak Upgrade", "description_text": "High frequency 4-minute service active through CBD corridor.", "severity": "INFO", "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
-        {"alert_id": "ALT-103", "mode": "Sydney Ferries", "header_text": "F1 Manly Swell Advisory", "description_text": "Ferries operating at reduced speed near Sydney Heads.", "severity": "MEDIUM", "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        {"pulled_at": pulled_at, "pulled_date": pulled_date, "pulled_time": pulled_time, "alert_id": "ALT-101", "mode": "Sydney Trains", "header_text": "T1 Western Line Trackwork", "description_text": "Buses replace trains between Blacktown and Parramatta.", "severity": "MEDIUM", "updated_at": pulled_at},
+        {"pulled_at": pulled_at, "pulled_date": pulled_date, "pulled_time": pulled_time, "alert_id": "ALT-102", "mode": "Sydney Metro", "header_text": "M1 Metro Peak Upgrade", "description_text": "High frequency 4-minute service active through CBD corridor.", "severity": "INFO", "updated_at": pulled_at},
+        {"pulled_at": pulled_at, "pulled_date": pulled_date, "pulled_time": pulled_time, "alert_id": "ALT-103", "mode": "Sydney Ferries", "header_text": "F1 Manly Swell Advisory", "description_text": "Ferries operating at reduced speed near Sydney Heads.", "severity": "MEDIUM", "updated_at": pulled_at}
     ]
     pd.DataFrame(alerts_seed).to_csv("data/latest_service_alerts.csv", index=False)
 
     summary = {
-        "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "pulled_at": pulled_at,
+        "pulled_date": pulled_date,
+        "pulled_time": pulled_time,
         "total_vehicles": len(vehicles),
         "total_trip_updates": len(trip_updates),
         "total_stations": len(stations),
@@ -305,38 +344,39 @@ def export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes):
     with open("data/summary.json", "w") as f:
         json.dump(summary, f, indent=2)
 
-    print("  [+] Exported enriched CSV & JSON endpoints for Power BI Web Connector under data/")
+    print(f"  [+] Exported enriched CSV & JSON endpoints (pulled_at: {pulled_at}) for Power BI under data/")
 
 
 def run_polling_job(db_path=DB_FILE):
     """Executes a full live data polling cycle across all TfNSW endpoints and writes to Star Schema SQLite."""
+    now_dt = datetime.now()
+    now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+
     print("==================================================")
     print(" Starting Expanded TfNSW Sydney Live Polling Cycle")
-    print(f" Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f" Timestamp (pulled_at): {now_str}")
     print("==================================================")
 
     init_db(db_path)
     api_key = get_api_key()
 
     print("\nFetching GTFS-R vehicle positions & occupancy status...")
-    vehicles = fetch_gtfs_realtime_vehicles(api_key)
+    vehicles = fetch_gtfs_realtime_vehicles(api_key, now_dt)
 
     print("\nFetching GTFS-R trip update delay predictions...")
-    trip_updates = fetch_gtfs_trip_updates(api_key)
+    trip_updates = fetch_gtfs_trip_updates(api_key, now_dt)
 
     print("\nFetching Departure Monitors across 20 Sydney interchanges...")
-    stations = fetch_station_departure_monitors(api_key)
+    stations = fetch_station_departure_monitors(api_key, now_dt)
 
     print("\nComputing real-time Sydney route commute durations...")
-    routes = compute_route_commute_times(stations)
+    routes = compute_route_commute_times(stations, now_dt)
 
-    # Export web CSVs for Power BI Web Connector
-    export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes)
+    # Export web CSVs for Power BI Web Connector with pulled_at
+    export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes, now_dt)
 
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
-
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     cursor.execute(
         "INSERT INTO dim_snapshots (timestamp, run_type, total_vehicles, total_stations, total_trip_updates, status) VALUES (?, 'LIVE_POLL', ?, ?, ?, 'SUCCESS')",
@@ -390,7 +430,7 @@ def run_polling_job(db_path=DB_FILE):
     conn.close()
 
     print("\n==================================================")
-    print(f" SUCCESS: Polling snapshot #{snapshot_id} stored.")
+    print(f" SUCCESS: Polling snapshot #{snapshot_id} stored (pulled_at: {now_str}).")
     print(f" Saved {len(vehicles)} vehicles, {len(trip_updates)} trip updates, {len(stations)} stations, and {len(routes)} route benchmarks.")
     print("==================================================")
     return snapshot_id
