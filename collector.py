@@ -7,7 +7,7 @@ import urllib.parse
 from datetime import datetime
 from google.transit import gtfs_realtime_pb2
 
-from db import init_db, get_db_connection, SYDNEY_HUBS, SYDNEY_CORRIDORS, OCCUPANCY_MAP
+from db import init_db, get_db_connection, SYDNEY_HUBS, SYDNEY_CORRIDORS, OCCUPANCY_MAP, DB_FILE
 
 DEFAULT_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJCb3dUU0Z5dEFIWnVpYlZyaGg0RUdlMmtXRzZKLVZMai1HYUFBOENKb2hNIiwiaWF0IjoxNzg2MjU0MDU5fQ.2G96XQVBv-OXBlsiJqKW7IumCdXtCTokaMo7uvIPK_U"
 
@@ -166,8 +166,7 @@ def fetch_station_departure_monitors(api_key):
 def compute_route_commute_times(station_records):
     """Calculates route commute travel duration and congestion factors across top Sydney corridors."""
     route_records = []
-    
-    # Calculate global station delay penalty
+
     if station_records:
         avg_network_delay_sec = sum(s["avg_delay_sec"] for s in station_records) / len(station_records)
     else:
@@ -196,8 +195,8 @@ def compute_route_commute_times(station_records):
     return route_records
 
 
-def run_polling_job(db_path="sydney_commute.db"):
-    """Executes a full live data polling cycle across all TfNSW endpoints and stores to SQLite."""
+def run_polling_job(db_path=DB_FILE):
+    """Executes a full live data polling cycle across all TfNSW endpoints and stores to SQLite with Foreign Keys."""
     print("==================================================")
     print(" Starting TfNSW Sydney Multi-Endpoint Live Polling Cycle")
     print(f" Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -215,7 +214,6 @@ def run_polling_job(db_path="sydney_commute.db"):
     print("\nComputing real-time Sydney route commute durations...")
     routes = compute_route_commute_times(stations)
 
-    # Store snapshot in SQLite Database
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
@@ -227,7 +225,6 @@ def run_polling_job(db_path="sydney_commute.db"):
     )
     snapshot_id = cursor.lastrowid
 
-    # Insert Vehicle records
     for v in vehicles:
         cursor.execute("""
             INSERT INTO vehicle_occupancy
@@ -239,7 +236,6 @@ def run_polling_job(db_path="sydney_commute.db"):
             v["occupancy_score"], v["trip_id"]
         ))
 
-    # Insert Station records
     for s in stations:
         cursor.execute("""
             INSERT INTO station_foot_traffic
@@ -251,7 +247,6 @@ def run_polling_job(db_path="sydney_commute.db"):
             s["foot_traffic_index"], s["status_level"]
         ))
 
-    # Insert Route records
     for r in routes:
         cursor.execute("""
             INSERT INTO route_commute_times

@@ -1,68 +1,83 @@
-# Sydney Transport, Foot Traffic & ML Analytics Platform
+# 🚆 TfNSW Sydney Transport Intelligence & Live Foot Traffic Platform
 
-A real-time data intelligence and machine learning analytics platform for Sydney's public transport network, powered by **Transport for NSW (TfNSW) Open Data APIs**, **SQLite**, **Scikit-Learn**, and **Streamlit**.
-
-![Streamlit Platform](https://img.shields.io/badge/Framework-Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)
-![Python Version](https://img.shields.io/badge/Python-3.9%2B-blue?style=for-the-badge&logo=python&logoColor=white)
-![TfNSW API](https://img.shields.io/badge/Data-TfNSW%20Open%20Data-06B6D4?style=for-the-badge)
+A real-time Sydney public transport foot traffic density tracker, GTFS-R fleet vehicle monitor, and Ridge ML time-series forecasting web application powered by **Streamlit** and **Transport for NSW (TfNSW) Open Data APIs**.
 
 ---
 
-## 🌟 Platform Highlights
+## 🌟 Key Features
 
-- **Multi-Endpoint TfNSW Poller**: Real-time feeds across GTFS-Realtime Vehicle Positions, Trip Updates, Service Alerts, and Departure Monitors for 20 major Sydney hubs.
-- **Streamlit Web Application (`streamlit_app.py`)**: Glassmorphic Obsidian dark theme with 5 interactive analytical tabs.
-- **Power BI Data Slicers**: Filter in real time by Transport Mode, Sydney Region, Time Window, and Occupancy Risk Level.
-- **Machine Learning Time-Series Model**: Scikit-Learn Ridge Regression forecasting Sydney foot traffic curves with 95% Confidence Interval bands.
-- **3D Geospatial Operations**: PyDeck 3D map visualizing live vehicle markers and interchange station foot traffic indices.
+* **30-Minute Self-Running Data Ingestion**: Automated GitHub Actions workflow ([.github/workflows/daily_poll.yml](.github/workflows/daily_poll.yml)) runs every 30 minutes to query TfNSW GTFS-Realtime feeds and departure monitors, committing updated snapshots into a normalized SQLite database ([sydney_commute.db](sydney_commute.db)).
+* **Relational Database Model**: SQLite relational schema with `PRAGMA foreign_keys = ON;`, `ON DELETE CASCADE`, and indexes across `timestamp`, `snapshot_id`, `mode`, and `region`.
+* **🎬 Animated 24-Hour Traffic Flow Movement**: Interactive 24-hour timeline animation player visualizing how foot traffic congestion levels move across 20 major Sydney interchanges (Central Station, Town Hall, Parramatta, Chatswood, Bondi Junction, Barangaroo Wharf, etc.).
+* **📈 24-Hour Time-Series Analytics**: Time-series charts comparing foot traffic density index vs average departure delay seconds over 24 hours.
+* **🤖 Ridge ML Time-Series Forecaster**: Scikit-Learn Ridge regression model predicting 24-hour future foot traffic curves with 95% Confidence Interval bounds and evaluation metrics ($MAE$, $RMSE$, $R^2$).
+* **🗺️ Geospatial Fleet Explorer**: Interactive PyDeck map displaying real-time positions for Sydney Trains, Sydney Metro, Sydney Buses, Sydney Ferries, and Light Rail.
+* **🚨 Service Disruptions Feed**: Live TfNSW service alerts filterable by severity (`CRITICAL`, `HIGH`, `MEDIUM`, `INFO`).
 
 ---
 
-## 🚀 Running the Streamlit App Locally
+## 🗄️ Database Relational Model
 
-1. **Activate Environment & Install Dependencies**:
+The system operates on a normalized SQLite schema (`sydney_commute.db` or `candidates.db`):
+
+```
+snapshots (id [PK], timestamp, run_type, total_vehicles, total_stations, status)
+  ├── vehicle_occupancy (id [PK], snapshot_id [FK], timestamp, vehicle_id, mode, route_id, lat, lon, speed, occupancy_status, occupancy_score)
+  ├── station_foot_traffic (id [PK], snapshot_id [FK], timestamp, station_id, station_name, region, lat, lon, foot_traffic_index, status_level)
+  └── route_commute_times (id [PK], snapshot_id [FK], timestamp, origin_name, dest_name, mode, baseline_time_min, actual_time_min, delay_min)
+```
+
+---
+
+## 🚀 Running Locally
+
+1. **Install Dependencies**:
    ```bash
-   python -m venv .venv
-   .venv\Scripts\activate
    pip install -r requirements.txt
    ```
 
-2. **Launch Streamlit Web Dashboard**:
+2. **Run 30-Minute Ingestion Collector**:
+   ```bash
+   python collector.py
+   ```
+
+3. **Launch Streamlit Dashboard**:
    ```bash
    streamlit run streamlit_app.py
    ```
-   Or run using python launcher:
+   Or via the app launcher script:
    ```bash
    python app.py
    ```
 
-3. **Access Dashboard**:
-   Open `http://localhost:8050` or `http://localhost:8501` in your browser.
-
 ---
 
-## 📊 Streamlit App Structure (`streamlit_app.py`)
+## 🌐 Publishing & Embedding Guide
 
-- **Tab 1: 🌐 Live Geo Operations**: PyDeck 3D map & active vehicle counters.
-- **Tab 2: 🤖 ML & Predictive Traffic Forecasting**: Scikit-learn Ridge model prediction curves & 95% confidence bands.
-- **Tab 3: ⏱️ Commute Benchmarks & Speed Profiles**: Origin-destination corridor travel time benchmarks & speed vectors.
-- **Tab 4: 🔥 Station Foot Traffic Matrix**: 24h station congestion heatmap matrix & top busiest interchange rankings.
-- **Tab 5: ⚠️ TfNSW Alerts & API Health**: Real-time service disruption feed & API endpoint status monitor.
+Since Streamlit requires a live Python runtime, it is deployed via **Streamlit Community Cloud** (free) and embedded into Notion, Netlify, or custom websites via standard `<iframe>` tags.
 
----
+### Step 1: Publish to Streamlit Community Cloud
+1. Push this repository to GitHub.
+2. Sign in to [share.streamlit.io](https://share.streamlit.io/) with your GitHub account.
+3. Click **New app**, select your repository, branch (`main`), and set Main file path to `streamlit_app.py`.
+4. Add your secrets (optional): `TFNSW_API_KEY = "your_key"` in App Settings > Secrets.
+5. Click **Deploy**. Your app will be live at `https://<your-app-name>.streamlit.app`.
 
-## 🗄️ Database Schema & Architecture
+### Step 2: Embedding in Notion, Netlify, or GitHub Pages
+You can embed your published Streamlit dashboard directly into Notion, Netlify, or any webpage:
 
-The platform stores historical time-series data in `sydney_commute.db` across 5 primary tables:
-- `snapshots`: System execution log & aggregate fleet metrics.
-- `vehicle_occupancy`: Latitude, longitude, speed, and occupancy load factor per vehicle.
-- `station_foot_traffic`: Departure counts, delays, and foot traffic index across 20 Sydney hubs.
-- `route_commute_times`: Baseline vs actual travel times on top commute corridors.
-- `service_alerts`: Real-time TfNSW service disruption notices.
-- `ml_forecasts`: Trained Ridge model weights, MAE, RMSE, and R² evaluation metrics.
+#### Embed in Notion
+1. Open any Notion page and type `/embed`.
+2. Paste your Streamlit URL (`https://<your-app-name>.streamlit.app`).
 
----
-
-## ⚙️ Automated GitHub Actions Polling
-
-The automated poller runs every 30 minutes via `.github/workflows/daily_poll.yml` to pull live TfNSW data into `sydney_commute.db`.
+#### Embed in Netlify / GitHub Pages / Custom Site
+Add an `<iframe>` tag to your HTML code:
+```html
+<iframe 
+  src="https://<your-app-name>.streamlit.app/?embed=true" 
+  width="100%" 
+  height="900px" 
+  style="border:none; border-radius:12px;"
+  allow="geolocation">
+</iframe>
+```

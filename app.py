@@ -1,4 +1,3 @@
-import os
 import sys
 import argparse
 import subprocess
@@ -13,7 +12,7 @@ def run_streamlit_app(port=8050):
     cmd = [
         sys.executable, "-m", "streamlit", "run", "streamlit_app.py",
         "--server.port", str(port),
-        "--server.headles", "true",
+        "--server.headless", "true",
         "--browser.gatherUsageStats", "false"
     ]
     subprocess.run(cmd)

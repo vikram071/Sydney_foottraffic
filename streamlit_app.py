@@ -5,6 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as gg
 from plotly.subplots import make_subplots
 import pydeck as pdk
+import time
 from datetime import datetime
 
 from db import init_db, seed_baseline_history_if_empty, DB_FILE
@@ -13,631 +14,516 @@ from analytics import (
     get_vehicle_occupancy_df,
     get_station_foot_traffic_df,
     get_hourly_commute_trends_df,
+    get_animated_timeline_df,
     get_mode_breakdown_df,
     get_station_congestion_heatmap_df,
     get_service_alerts_df
 )
 from ml_models import train_time_series_forecaster, get_route_commute_benchmark_df
 
-# Ensure DB initialized & seeded
-init_db()
-seed_baseline_history_if_empty()
-
-# 1. Page Configuration
+# Page Configuration
 st.set_page_config(
-    page_title="Sydney Transport, Foot Traffic & ML Platform",
+    page_title="Sydney Transport Intelligence | Live Foot Traffic & ML Platform",
     page_icon="🚆",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# 2. Custom CSS Injection (Obsidian Glassmorphism Design System)
+# Initialize and seed database if necessary
+init_db(DB_FILE)
+seed_baseline_history_if_empty(DB_FILE)
+
+# Custom Styling (Dark Obsidian Glassmorphism)
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap');
-
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"], .main, .block-container {
-        background-color: #0B0F19 !important;
-        color: #F8FAFC !important;
-        font-family: 'Inter', system-ui, sans-serif !important;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
     }
-
-    /* Hide standard header decoration */
-    header[data-testid="stHeader"], #MainMenu, footer, [data-testid="stToolbar"] {
-        display: none !important;
-    }
-
-    .block-container {
-        padding: 1.8rem 2.5rem 3rem !important;
-        max-width: 1760px !important;
-    }
-
-    /* Header styling */
-    .brand-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.8rem;
-        padding: 1.5rem 2.2rem;
-        background: rgba(15, 23, 42, 0.85);
-        backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
-        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
-    }
-
-    .brand-title h1 {
-        font-family: 'Outfit', sans-serif;
-        font-size: 2.2rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #06B6D4 0%, #8B5CF6 50%, #10B981 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 0;
-    }
-
-    .brand-title p {
-        font-size: 0.9rem;
-        color: #94A3B8;
-        margin-top: 0.3rem;
-    }
-
-    /* Metric Cards */
-    .metric-card {
-        background: rgba(15, 23, 42, 0.78);
-        backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 18px;
-        padding: 1.25rem 1.4rem;
-        margin-bottom: 1rem;
-        transition: all 0.3s ease;
-    }
-    .metric-card:hover {
-        transform: translateY(-3px);
-        border-color: rgba(6, 182, 212, 0.35);
-        box-shadow: 0 12px 28px rgba(6, 182, 212, 0.15);
-    }
-    .metric-label {
-        font-size: 0.78rem;
-        font-weight: 700;
-        color: #94A3B8;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .metric-value {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.95rem;
-        font-weight: 800;
+    
+    /* Main Background & Cards */
+    .stApp {
+        background-color: #0B0F19;
         color: #F8FAFC;
-        margin: 0.3rem 0;
     }
-    .metric-sub {
-        font-size: 0.75rem;
-        color: #06B6D4;
-        font-weight: 500;
-    }
-
-    /* Chart Cards */
-    .chart-wrap {
-        background: rgba(15, 23, 42, 0.78);
-        backdrop-filter: blur(16px);
+    
+    .kpi-card {
+        background: rgba(17, 24, 39, 0.75);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
-        padding: 1.4rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
+        transition: transform 0.2s ease, border-color 0.2s ease;
     }
-    .chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    .kpi-card:hover {
+        border-color: rgba(6, 182, 212, 0.4);
+        transform: translateY(-2px);
     }
-    .chart-title {
-        font-family: 'Outfit', sans-serif;
-        font-size: 1.1rem;
-        font-weight: 700;
+    .kpi-label {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94A3B8;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+    .kpi-value {
+        font-size: 28px;
+        font-weight: 800;
         color: #06B6D4;
+        line-height: 1.2;
     }
-    .chart-badge {
-        font-size: 0.72rem;
-        font-weight: 700;
-        padding: 3px 10px;
-        border-radius: 9999px;
-        background: rgba(139, 92, 246, 0.15);
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        color: #8B5CF6;
+    .kpi-sub {
+        font-size: 12px;
+        color: #64748B;
+        margin-top: 4px;
     }
-
-    /* Custom Streamlit Tabs Styling */
-    button[data-baseweb="tab"] {
-        background: transparent !important;
-        color: #94A3B8 !important;
-        font-size: 0.95rem !important;
-        font-weight: 600 !important;
-        padding: 0.7rem 1.4rem !important;
-        border-radius: 12px !important;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        color: #F8FAFC !important;
-        background: rgba(6, 182, 212, 0.15) !important;
-        border: 1px solid rgba(6, 182, 212, 0.35) !important;
-    }
-    [data-baseweb="tab-highlight"], [data-baseweb="tab-border"] {
-        display: none !important;
-    }
-    [data-baseweb="tab-list"] {
-        gap: 8px !important;
-        background: rgba(15, 23, 42, 0.6) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 16px !important;
-        padding: 6px;
-        margin-bottom: 1.5rem;
-    }
-
-    /* Table styling */
-    .data-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-    }
-    .data-table th {
-        text-align: left;
-        padding: 0.75rem;
-        color: #06B6D4;
+    
+    /* Status Badges */
+    .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .data-table td {
-        padding: 0.75rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    .badge-heavy { background: rgba(244, 63, 94, 0.2); color: #F43F5E; border: 1px solid #F43F5E; }
+    .badge-busy { background: rgba(249, 115, 22, 0.2); color: #F97316; border: 1px solid #F97316; }
+    .badge-mod { background: rgba(245, 158, 11, 0.2); color: #F59E0B; border: 1px solid #F59E0B; }
+    .badge-low { background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid #10B981; }
+
+    /* Section Containers */
+    .block-container {
+        padding-top: 1.5rem;
+        padding-bottom: 2rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 3. Header Section
-st.markdown("""
-<div class="brand-header">
-    <div class="brand-title">
-        <h1>Sydney Transport, Foot Traffic & ML Platform</h1>
-        <p>Real-time TfNSW open data intelligence platform powered by Python, Streamlit & Scikit-Learn</p>
-    </div>
-    <div style="text-align: right;">
-        <span style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10B981; padding: 8px 16px; border-radius: 9999px; font-size: 0.8rem; font-weight: 700;">
-            ● TfNSW Live API Stream Active
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+# Colors
+MODE_COLORS = {
+    "Sydney Trains": [6, 182, 212],    # Electric Cyan
+    "Sydney Metro": [139, 92, 246],    # Deep Violet
+    "Sydney Buses": [59, 130, 246],    # Cobalt Blue
+    "Sydney Ferries": [16, 185, 129],  # Neon Emerald
+    "Light Rail": [245, 158, 11]       # Amber
+}
 
-# 4. Interactive Sidebar Slicers
-st.sidebar.markdown("<h3 style='color:#06B6D4;'>⚡ Power BI Data Slicers</h3>", unsafe_allow_html=True)
+MODE_HEX = {
+    "Sydney Trains": "#06B6D4",
+    "Sydney Metro": "#8B5CF6",
+    "Sydney Buses": "#3B82F6",
+    "Sydney Ferries": "#10B981",
+    "Light Rail": "#F59E0B"
+}
 
-mode_filter = st.sidebar.selectbox(
-    "Transport Mode",
-    ["ALL", "Sydney Trains", "Sydney Metro", "Sydney Buses", "Sydney Ferries", "Light Rail"]
-)
+# Sidebar Navigation & Filters
+st.sidebar.image("https://img.icons8.com/isometric/96/subway.png", width=64)
+st.sidebar.title("Sydney Transport AI")
+st.sidebar.caption("Real-Time Foot Traffic & ML Analytics Platform")
 
-region_filter = st.sidebar.selectbox(
-    "Sydney Region",
-    ["ALL", "CBD", "Western Sydney", "North Shore", "Inner West", "Airport Corridor", "South/East"]
-)
-
-time_filter = st.sidebar.selectbox(
-    "Time Window",
-    ["ALL", "AM_PEAK (7-9 AM)", "MIDDAY (10 AM-3 PM)", "PM_PEAK (4-7 PM)", "NIGHT (8 PM+)"]
-)
-
-risk_filter = st.sidebar.selectbox(
-    "Occupancy Risk Level",
-    ["ALL", "LOW (Seats Free)", "MODERATE (Standing)", "HIGH (Crushed/Full)"]
-)
+metrics = get_latest_metrics(DB_FILE)
 
 st.sidebar.markdown("---")
-st.sidebar.info("💡 **TfNSW API Endpoints**: Vehicle Positions, Trip Updates, Service Alerts, Departure Monitors across 20 Sydney Interchanges.")
+st.sidebar.subheader("🎛️ Data Filters")
+selected_mode = st.sidebar.selectbox("Transport Mode", ["ALL", "Sydney Trains", "Sydney Metro", "Sydney Buses", "Sydney Ferries", "Light Rail"])
+selected_region = st.sidebar.selectbox("Geographic Region", ["ALL", "CBD", "Western Sydney", "North Shore", "South/East", "Inner West", "Airport Corridor"])
 
-# 5. Fetch Data
-metrics = get_latest_metrics()
-vehicle_df = get_vehicle_occupancy_df(mode_filter=mode_filter)
-station_df = get_station_foot_traffic_df(region_filter=region_filter)
-trends_df = get_hourly_commute_trends_df()
-mode_df = get_mode_breakdown_df()
-heatmap_df = get_station_congestion_heatmap_df()
-alerts_df = get_service_alerts_df()
-pred_df, ml_metrics = train_time_series_forecaster()
-routes_df = get_route_commute_benchmark_df()
+st.sidebar.markdown("---")
+st.sidebar.subheader("📡 Ingestion Status")
+st.sidebar.markdown(f"**Status:** <span class='badge badge-low'>ACTIVE (30-MIN POLL)</span>", unsafe_allow_html=True)
+st.sidebar.markdown(f"**Database:** `{DB_FILE}`")
+st.sidebar.markdown(f"**Last Sync:** `{metrics.get('timestamp', 'N/A')}`")
 
-# Apply secondary client filters if selected
-if risk_filter != "ALL" and not vehicle_df.empty:
-    if risk_filter.startswith("LOW"):
-        vehicle_df = vehicle_df[vehicle_df["occupancy_score"] < 50]
-    elif risk_filter.startswith("MODERATE"):
-        vehicle_df = vehicle_df[(vehicle_df["occupancy_score"] >= 50) & (vehicle_df["occupancy_score"] < 80)]
-    elif risk_filter.startswith("HIGH"):
-        vehicle_df = vehicle_df[vehicle_df["occupancy_score"] >= 80]
+if st.sidebar.button("🔄 Trigger Live Polling Job"):
+    from collector import run_polling_job
+    with st.spinner("Polling TfNSW endpoints..."):
+        run_polling_job(DB_FILE)
+    st.sidebar.success("Polling complete!")
+    st.rerun()
 
-# 6. Top 8 KPI Cards Row
-k1, k2, k3, k4, k5, k6, k7, k8 = st.columns(8)
+# Title Header
+st.title("🚆 Sydney Transport Intelligence Platform")
+st.markdown("Real-time TfNSW GTFS-R fleet tracking, station foot traffic density, and Ridge ML time-series forecasting.")
 
-with k1:
-    v_cnt = len(vehicle_df) if not vehicle_df.empty else metrics.get("active_vehicles", 0)
+# Executive KPI Cards
+st.markdown("### 📊 Executive Overview")
+kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+
+with kpi1:
     st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Active Fleet</div>
-        <div class="metric-value">{v_cnt}</div>
-        <div class="metric-sub">Tracked Vehicles</div>
+    <div class="kpi-card">
+        <div class="kpi-label">Active Fleet</div>
+        <div class="kpi-value">{metrics.get('active_vehicles', 0):,}</div>
+        <div class="kpi-sub">Vehicles tracked across Sydney</div>
     </div>
     """, unsafe_allow_html=True)
 
-with k2:
-    occ = round(vehicle_df["occupancy_score"].mean(), 1) if not vehicle_df.empty else metrics.get("avg_occupancy_pct", 0.0)
+with kpi2:
     st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Avg Fleet Load</div>
-        <div class="metric-value">{occ}%</div>
-        <div class="metric-sub">Seat Capacity</div>
+    <div class="kpi-card">
+        <div class="kpi-label">Fleet Occupancy</div>
+        <div class="kpi-value">{metrics.get('avg_occupancy_pct', 0)}%</div>
+        <div class="kpi-sub">{metrics.get('congested_vehicles', 0)} vehicles at high capacity</div>
     </div>
     """, unsafe_allow_html=True)
 
-with k3:
-    spd = round(vehicle_df["speed"].mean(), 1) if not vehicle_df.empty else metrics.get("avg_fleet_speed", 0.0)
+with kpi3:
     st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Avg Speed</div>
-        <div class="metric-value" style="color:#06B6D4;">{spd} <span style="font-size:1rem;">km/h</span></div>
-        <div class="metric-sub">Network Velocity</div>
+    <div class="kpi-card">
+        <div class="kpi-label">Busiest Interchange</div>
+        <div class="kpi-value" style="font-size: 20px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{metrics.get('busiest_station', 'Central')}</div>
+        <div class="kpi-sub">Traffic Index: <b style="color:#F59E0B;">{metrics.get('busiest_station_index', 0)} / 100</b></div>
     </div>
     """, unsafe_allow_html=True)
 
-with k4:
-    otp = metrics.get("on_time_pct", 94.2)
+with kpi4:
     st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">On-Time %</div>
-        <div class="metric-value" style="color:#10B981;">{otp}%</div>
-        <div class="metric-sub">Punctuality</div>
+    <div class="kpi-card">
+        <div class="kpi-label">On-Time Performance</div>
+        <div class="kpi-value">{metrics.get('on_time_pct', 94.2)}%</div>
+        <div class="kpi-sub">Network avg delay: {metrics.get('network_avg_delay_sec', 0)}s</div>
     </div>
     """, unsafe_allow_html=True)
 
-with k5:
-    hub = station_df.iloc[0]["station_name"] if not station_df.empty else metrics.get("busiest_station", "Central Station")
+with kpi5:
     st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Peak Hub</div>
-        <div class="metric-value" style="font-size:1.1rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{hub}</div>
-        <div class="metric-sub">Top Foot Traffic Node</div>
+    <div class="kpi-card">
+        <div class="kpi-label">Parramatta Corridor</div>
+        <div class="kpi-value">{metrics.get('parramatta_commute_min', 28.5)}m</div>
+        <div class="kpi-sub">Delay: +{metrics.get('parramatta_delay_min', 2.5)}m (Base: 26m)</div>
     </div>
     """, unsafe_allow_html=True)
 
-with k6:
-    next_p = pred_df["predicted_idx"].iloc[-1] if not pred_df.empty else 62.4
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">ML Forecast</div>
-        <div class="metric-value" style="color:#8B5CF6;">{next_p:.1f}</div>
-        <div class="metric-sub">Ridge Prediction</div>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown("---")
 
-with k7:
-    parra = metrics.get("parramatta_commute_min", 28.5)
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">Parra → Central</div>
-        <div class="metric-value" style="color:#F59E0B;">{parra} <span style="font-size:1rem;">min</span></div>
-        <div class="metric-sub">Corridor Benchmark</div>
-    </div>
-    """, unsafe_allow_html=True)
+# FEATURE: Animated 24-Hour Traffic Flow Player
+st.markdown("### 🎬 Animated 24-Hour Sydney Traffic Flow Movement")
+st.caption("Play or drag the 24-hour timeline slider to visualize how foot traffic density shifts across Sydney interchanges throughout the day.")
 
-with k8:
-    delays = metrics.get("total_delays", 0)
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-label">High Delays</div>
-        <div class="metric-value" style="color:#F43F5E;">{delays}</div>
-        <div class="metric-sub">Active Alerts</div>
-    </div>
-    """, unsafe_allow_html=True)
+anim_df = get_animated_timeline_df(DB_FILE)
 
-st.markdown("<br>", unsafe_allow_html=True)
+if not anim_df.empty:
+    anim_col1, anim_col2 = st.columns([1, 4])
+    
+    with anim_col1:
+        play_speed = st.slider("Animation Speed (sec/frame)", 0.2, 1.5, 0.5, step=0.1)
+        play_btn = st.button("▶️ Play 24-Hour Animation", use_container_width=True)
+        
+    with anim_col2:
+        selected_hour = st.slider("Hour of Day Timeline", 0, 23, 8, format="%02d:00")
 
-# 7. Streamlit Multi-Tab Dashboard Interface
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🌐 Live Geo Operations",
-    "🤖 ML & Traffic Forecasting",
-    "⏱️ Commute Benchmarks & Speed",
-    "🔥 Station Foot Traffic Matrix",
-    "⚠️ TfNSW Alerts & API Health"
-])
+    # If Play button is clicked, iterate through hours
+    if play_btn:
+        placeholder = st.empty()
+        for h in range(24):
+            h_df = anim_df[anim_df["hour_int"] == h]
+            if not h_df.empty:
+                # Map colors based on status
+                color_map = {
+                    "HEAVY_CONGESTION": [244, 63, 94, 200],
+                    "BUSY": [249, 115, 22, 190],
+                    "MODERATE": [245, 158, 11, 170],
+                    "LOW": [16, 185, 129, 150]
+                }
+                h_df_copy = h_df.copy()
+                h_df_copy["fill_color"] = h_df_copy["status_level"].map(color_map)
+                h_df_copy["radius"] = h_df_copy["foot_traffic_index"].apply(lambda x: max(300, min(2200, x * 22)))
 
-# Tab 1: Live Geo Operations
-with tab1:
-    col_map, col_info = st.columns([3, 1])
+                layer = pdk.Layer(
+                    "ScatterplotLayer",
+                    data=h_df_copy,
+                    get_position=["longitude", "latitude"],
+                    get_fill_color="fill_color",
+                    get_radius="radius",
+                    pickable=True,
+                    auto_highlight=True
+                )
+                view_state = pdk.ViewState(latitude=-33.8688, longitude=151.2093, zoom=10.5, pitch=45)
+                
+                with placeholder.container():
+                    st.markdown(f"#### 🕒 Snapshot Time: **{h:02d}:00 Hours**")
+                    st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip={"text": "{station_name}\nFoot Traffic Index: {foot_traffic_index}\nStatus: {status_level}"}))
+                time.sleep(play_speed)
+    else:
+        # Show specific selected hour
+        h_df = anim_df[anim_df["hour_int"] == selected_hour]
+        if not h_df.empty:
+            color_map = {
+                "HEAVY_CONGESTION": [244, 63, 94, 200],
+                "BUSY": [249, 115, 22, 190],
+                "MODERATE": [245, 158, 11, 170],
+                "LOW": [16, 185, 129, 150]
+            }
+            h_df_copy = h_df.copy()
+            h_df_copy["fill_color"] = h_df_copy["status_level"].map(color_map)
+            h_df_copy["radius"] = h_df_copy["foot_traffic_index"].apply(lambda x: max(300, min(2200, x * 22)))
 
-    with col_map:
-        st.markdown("""
-        <div class="chart-wrap">
-            <div class="chart-header">
-                <div class="chart-title">🌐 3D PyDeck Sydney Live Transport & Interchange Map</div>
-                <div class="chart-badge">Geospatial Operations</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        if not station_df.empty:
-            map_station_df = station_df.copy()
-            map_station_df["radius"] = map_station_df["foot_traffic_index"] * 40
-
-            layer_stations = pdk.Layer(
+            layer = pdk.Layer(
                 "ScatterplotLayer",
-                data=map_station_df,
+                data=h_df_copy,
                 get_position=["longitude", "latitude"],
+                get_fill_color="fill_color",
                 get_radius="radius",
-                get_color="[6, 182, 212, 200]",
                 pickable=True,
                 auto_highlight=True
             )
+            view_state = pdk.ViewState(latitude=-33.8688, longitude=151.2093, zoom=10.5, pitch=45)
+            st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip={"text": "{station_name}\nFoot Traffic Index: {foot_traffic_index}\nStatus: {status_level}"}))
 
-            layer_vehicles = pdk.Layer(
+st.markdown("---")
+
+# Tabbed Main Content: 1. Time-Series & ML, 2. Fleet & Station Explorer, 3. Corridors & Service Alerts
+tab1, tab2, tab3 = st.tabs(["📈 24H Time-Series & ML Forecasting", "🗺️ Station & Fleet Explorer", "🛣️ Corridors & Disruption Alerts"])
+
+with tab1:
+    st.subheader("⏱️ 24-Hour Aggregated Sydney Foot Traffic & Delay Trends")
+    trends_df = get_hourly_commute_trends_df(DB_FILE)
+    
+    if not trends_df.empty:
+        fig_ts = make_subplots(specs=[[{"secondary_y": True}]])
+        
+        fig_ts.add_trace(
+            gg.Scatter(
+                x=trends_df["hour_bucket"],
+                y=trends_df["avg_foot_traffic"],
+                name="Foot Traffic Index",
+                mode="lines+markers",
+                line=dict(color="#06B6D4", width=3, shape="spline"),
+                marker=dict(size=7, color="#06B6D4"),
+                fill="tozeroy",
+                fillcolor="rgba(6, 182, 212, 0.12)"
+            ),
+            secondary_y=False
+        )
+
+        fig_ts.add_trace(
+            gg.Bar(
+                x=trends_df["hour_bucket"],
+                y=trends_df["avg_delay_seconds"],
+                name="Avg Delay (s)",
+                marker=dict(color="rgba(244, 63, 94, 0.65)", line=dict(color="#F43F5E", width=1))
+            ),
+            secondary_y=True
+        )
+
+        fig_ts.update_layout(
+            paper_bgcolor="rgba(11, 15, 25, 0.95)",
+            plot_bgcolor="rgba(13, 17, 29, 0.85)",
+            font=dict(color="#F8FAFC"),
+            height=380,
+            margin=dict(l=40, r=40, t=20, b=40),
+            legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5)
+        )
+        fig_ts.update_yaxes(title_text="Foot Traffic Index (0-100)", secondary_y=False, gridcolor="rgba(255, 255, 255, 0.05)")
+        fig_ts.update_yaxes(title_text="Avg Delay (sec)", secondary_y=True, showgrid=False)
+        st.plotly_chart(fig_ts, use_container_width=True)
+
+    st.markdown("---")
+    
+    # ML Ridge Time-Series Forecasting
+    st.subheader("🤖 Ridge ML Time-Series Foot Traffic Forecasting Model")
+    st.caption("24-Hour Ahead Predicted Traffic Curve with 95% Confidence Interval Band.")
+
+    pred_df, ml_metrics = train_time_series_forecaster(DB_FILE)
+
+    ml_col1, ml_col2 = st.columns([3, 1])
+
+    with ml_col1:
+        if not pred_df.empty:
+            fig_ml = gg.Figure()
+
+            # Upper CI
+            fig_ml.add_trace(gg.Scatter(
+                x=pred_df["formatted_hour"], y=pred_df["upper_ci"],
+                mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"
+            ))
+
+            # Lower CI with fill
+            fig_ml.add_trace(gg.Scatter(
+                x=pred_df["formatted_hour"], y=pred_df["lower_ci"],
+                mode="lines", line=dict(width=0), fill="tonexty",
+                fillcolor="rgba(139, 92, 246, 0.18)", name="95% Confidence Interval"
+            ))
+
+            # Actual
+            fig_ml.add_trace(gg.Scatter(
+                x=pred_df["formatted_hour"], y=pred_df["actual_avg"],
+                name="Actual Traffic", mode="lines+markers",
+                line=dict(color="#06B6D4", width=3, shape="spline")
+            ))
+
+            # Forecast
+            fig_ml.add_trace(gg.Scatter(
+                x=pred_df["formatted_hour"], y=pred_df["predicted_idx"],
+                name="ML Ridge Forecast", mode="lines+markers",
+                line=dict(color="#8B5CF6", width=3, dash="dash", shape="spline"),
+                marker=dict(symbol="diamond", size=7)
+            ))
+
+            fig_ml.update_layout(
+                paper_bgcolor="rgba(11, 15, 25, 0.95)",
+                plot_bgcolor="rgba(13, 17, 29, 0.85)",
+                font=dict(color="#F8FAFC"),
+                height=380,
+                margin=dict(l=40, r=40, t=20, b=40),
+                legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
+                xaxis=dict(gridcolor="rgba(255, 255, 255, 0.05)"),
+                yaxis=dict(gridcolor="rgba(255, 255, 255, 0.05)")
+            )
+            st.plotly_chart(fig_ml, use_container_width=True)
+
+    with ml_col2:
+        st.markdown("#### Model Metrics")
+        st.metric("Mean Absolute Error (MAE)", f"{ml_metrics.get('mae', 0):.2f}")
+        st.metric("Root Mean Sq Error (RMSE)", f"{ml_metrics.get('rmse', 0):.2f}")
+        st.metric("R² Score Accuracy", f"{ml_metrics.get('r2', 0):.2f}")
+        st.info("Features: Hour of day, day of week, peak hour binary indicator, lag-1 & lag-2 features.")
+
+    st.markdown("---")
+    st.subheader("🔥 24-Hour Station Congestion Heatmap Matrix")
+    pivot_df = get_station_congestion_heatmap_df(DB_FILE)
+    if not pivot_df.empty:
+        fig_hm = px.imshow(
+            pivot_df,
+            labels=dict(x="Hour of Day", y="Interchange Station", color="Foot Traffic Index"),
+            color_continuous_scale="Viridis",
+            aspect="auto"
+        )
+        fig_hm.update_layout(
+            paper_bgcolor="rgba(11, 15, 25, 0.95)",
+            plot_bgcolor="rgba(13, 17, 29, 0.85)",
+            font=dict(color="#F8FAFC"),
+            height=420
+        )
+        st.plotly_chart(fig_hm, use_container_width=True)
+
+
+with tab2:
+    st.subheader("🌐 Real-Time Geospatial Fleet & Interchange Map")
+    v_df = get_vehicle_occupancy_df(DB_FILE, mode_filter=selected_mode)
+    s_df = get_station_foot_traffic_df(DB_FILE, region_filter=selected_region)
+
+    map_col1, map_col2 = st.columns([3, 1])
+
+    with map_col1:
+        layers = []
+        if not v_df.empty:
+            v_df_copy = v_df.copy()
+            v_df_copy["color"] = v_df_copy["mode"].map(MODE_COLORS)
+            vehicle_layer = pdk.Layer(
                 "ScatterplotLayer",
-                data=vehicle_df if not vehicle_df.empty else pd.DataFrame(),
+                data=v_df_copy,
                 get_position=["longitude", "latitude"],
-                get_radius=120,
-                get_color="[139, 92, 246, 220]",
+                get_fill_color="color",
+                get_radius=220,
+                pickable=True,
+                auto_highlight=True
+            )
+            layers.append(vehicle_layer)
+
+        if not s_df.empty:
+            s_df_copy = s_df.copy()
+            s_df_copy["radius"] = s_df_copy["foot_traffic_index"].apply(lambda x: max(400, min(3000, x * 30)))
+            station_layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=s_df_copy,
+                get_position=["longitude", "latitude"],
+                get_fill_color=[245, 158, 11, 180],
+                get_radius="radius",
                 pickable=True
             )
+            layers.append(station_layer)
 
-            view_state = pdk.ViewState(latitude=-33.8688, longitude=151.2093, zoom=10.8, pitch=45)
+        view_state = pdk.ViewState(latitude=-33.8688, longitude=151.2093, zoom=10.2, pitch=35)
+        st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state, tooltip={"text": "{mode}\nID: {vehicle_id}\nOccupancy: {occupancy_status} ({occupancy_score}%)\nSpeed: {speed} km/h"}))
 
-            r = pdk.Deck(
-                layers=[layer_stations, layer_vehicles],
-                initial_view_state=view_state,
-                map_style="mapbox://styles/mapbox/dark-v10",
-                tooltip={"html": "<b>{station_name}</b><br>Foot Traffic Index: {foot_traffic_index}"}
-            )
-            st.pydeck_chart(r)
+    with map_map_col2 := map_col2:
+        st.markdown("#### Mode Legend")
+        for m_name, hex_c in MODE_HEX.items():
+            cnt = len(v_df[v_df["mode"] == m_name]) if not v_df.empty else 0
+            st.markdown(f"<span style='color:{hex_c}; font-size:18px;'>██</span> <b>{m_name}</b> ({cnt})", unsafe_allow_html=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("---")
 
-    with col_info:
-        st.markdown("""
-        <div class="chart-wrap">
-            <div class="chart-header">
-                <div class="chart-title">🚍 Fleet Breakdown</div>
-                <div class="chart-badge">Live Vehicles</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        if not mode_df.empty:
-            for _, row in mode_df.iterrows():
-                st.write(f"**{row['mode']}**: {row['vehicle_count']} active ({row['avg_speed']} km/h avg)")
-                st.progress(min(1.0, row['vehicle_count'] / 50))
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# Tab 2: ML & Predictive Analytics
-with tab2:
-    st.markdown("""
-    <div class="chart-wrap">
-        <div class="chart-header">
-            <div class="chart-title">🤖 Scikit-Learn Ridge Model: 24-Hour Foot Traffic Forecast with 95% Confidence Interval</div>
-            <div class="chart-badge">R² Score: {:.2f} | MAE: {:.2f}</div>
-        </div>
-    """.format(ml_metrics.get("r2", 0.96), ml_metrics.get("mae", 2.1)), unsafe_allow_html=True)
-
-    if not pred_df.empty:
-        fig_ml = gg.Figure()
-
-        # Confidence interval
-        fig_ml.add_trace(gg.Scatter(
-            x=pred_df["formatted_hour"], y=pred_df["upper_ci"], mode="lines", line=dict(width=0), showlegend=False
-        ))
-        fig_ml.add_trace(gg.Scatter(
-            x=pred_df["formatted_hour"], y=pred_df["lower_ci"], mode="lines", line=dict(width=0),
-            fill="tonexty", fillcolor="rgba(139, 92, 246, 0.18)", name="95% Confidence Interval"
-        ))
-        # Actual
-        fig_ml.add_trace(gg.Scatter(
-            x=pred_df["formatted_hour"], y=pred_df["actual_avg"], name="Actual Foot Traffic",
-            mode="lines+markers", line=dict(color="#06B6D4", width=3)
-        ))
-        # Predicted
-        fig_ml.add_trace(gg.Scatter(
-            x=pred_df["formatted_hour"], y=pred_df["predicted_idx"], name="ML Predicted Forecast",
-            mode="lines+markers", line=dict(color="#8B5CF6", width=3, dash="dash")
-        ))
-
-        fig_ml.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#F8FAFC"), height=420, margin=dict(l=45, r=35, t=15, b=45),
-            xaxis=dict(gridcolor="rgba(255,255,255,0.05)", title="Hour of Day"),
-            yaxis=dict(gridcolor="rgba(255,255,255,0.05)", title="Foot Traffic Index (0-100)"),
-            legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
+    st.subheader("📋 Top Busiest Sydney Interchanges & Station Table")
+    if not s_df.empty:
+        st.dataframe(
+            s_df[["station_name", "region", "mode", "foot_traffic_index", "status_level", "scheduled_departures", "delayed_departures", "avg_delay_sec"]],
+            column_config={
+                "station_name": "Station Name",
+                "region": "Region",
+                "foot_traffic_index": st.column_config.NumberColumn("Foot Traffic Index", format="%.1f"),
+                "status_level": "Congestion Status",
+                "avg_delay_sec": st.column_config.NumberColumn("Avg Delay (s)", format="%.1f")
+            },
+            hide_index=True,
+            use_container_width=True
         )
-        st.plotly_chart(fig_ml, use_container_width=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
 
-# Tab 3: Commute Duration & Speed Profiles
 with tab3:
-    c1, c2 = st.columns(2)
+    st.subheader("🛣️ Sydney Major Commute Corridor Duration Benchmarks")
+    route_df = get_route_commute_benchmark_df(DB_FILE)
 
-    with c1:
-        st.markdown("""
-        <div class="chart-wrap">
-            <div class="chart-header">
-                <div class="chart-title">⏱️ Origin-Destination Commute Benchmarks</div>
-                <div class="chart-badge">Travel Duration (min)</div>
-            </div>
-        """, unsafe_allow_html=True)
+    if not route_df.empty:
+        fig_r = gg.Figure()
+        fig_r.add_trace(gg.Bar(
+            y=route_df["route_label"],
+            x=route_df["baseline_time_min"],
+            name="Baseline Duration (min)",
+            orientation="h",
+            marker=dict(color="rgba(16, 185, 129, 0.75)")
+        ))
+        fig_r.add_trace(gg.Bar(
+            y=route_df["route_label"],
+            x=route_df["avg_delay_min"],
+            name="Avg Delay (min)",
+            orientation="h",
+            marker=dict(color="rgba(244, 63, 94, 0.85)")
+        ))
+        fig_r.update_layout(
+            paper_bgcolor="rgba(11, 15, 25, 0.95)",
+            plot_bgcolor="rgba(13, 17, 29, 0.85)",
+            font=dict(color="#F8FAFC"),
+            barmode="stack",
+            height=380,
+            margin=dict(l=120, r=40, t=20, b=40),
+            legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
+            yaxis=dict(autorange="reversed")
+        )
+        st.plotly_chart(fig_r, use_container_width=True)
 
-        if not routes_df.empty:
-            fig_r = gg.Figure()
-            fig_r.add_trace(gg.Bar(
-                y=routes_df["route_label"], x=routes_df["baseline_time_min"], name="Baseline (min)",
-                orientation="h", marker=dict(color="rgba(16, 185, 129, 0.7)")
-            ))
-            fig_r.add_trace(gg.Bar(
-                y=routes_df["route_label"], x=routes_df["avg_delay_min"], name="Congestion Delay (min)",
-                orientation="h", marker=dict(color="rgba(244, 63, 94, 0.8)")
-            ))
-            fig_r.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#F8FAFC"), height=420, barmode="stack",
-                margin=dict(l=110, r=35, t=15, b=45),
-                xaxis=dict(gridcolor="rgba(255,255,255,0.05)", title="Travel Time (Minutes)"),
-                yaxis=dict(autorange="reversed"),
-                legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
-            )
-            st.plotly_chart(fig_r, use_container_width=True)
+    st.markdown("---")
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with c2:
-        st.markdown("""
-        <div class="chart-wrap">
-            <div class="chart-header">
-                <div class="chart-title">⚡ Mode Speed Vectors (km/h)</div>
-                <div class="chart-badge">Avg vs Max Speed</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        if not mode_df.empty:
-            fig_s = gg.Figure()
-            fig_s.add_trace(gg.Bar(x=mode_df["mode"], y=mode_df["avg_speed"], name="Avg Speed (km/h)", marker=dict(color="#06B6D4")))
-            fig_s.add_trace(gg.Bar(x=mode_df["mode"], y=mode_df["max_speed"], name="Max Speed (km/h)", marker=dict(color="#8B5CF6")))
-            fig_s.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#F8FAFC"), height=420, barmode="group",
-                margin=dict(l=45, r=35, t=15, b=45),
-                yaxis=dict(gridcolor="rgba(255,255,255,0.05)", title="Speed (km/h)"),
-                legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5)
-            )
-            st.plotly_chart(fig_s, use_container_width=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# Tab 4: Interchange Foot Traffic Matrix
-with tab4:
-    h1, h2 = st.columns([1.5, 1])
-
-    with h1:
-        st.markdown("""
-        <div class="chart-wrap">
-            <div class="chart-header">
-                <div class="chart-title">🔥 24-Hour Sydney Station Congestion Heatmap Matrix</div>
-                <div class="chart-badge">Spatial Congestion Matrix</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        if not heatmap_df.empty:
-            fig_hm = gg.Figure(data=gg.Heatmap(
-                z=heatmap_df.values, x=heatmap_df.columns, y=heatmap_df.index,
-                colorscale="Viridis", colorbar=dict(title="Index")
-            ))
-            fig_hm.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#F8FAFC"), height=460,
-                margin=dict(l=110, r=35, t=15, b=45),
-                xaxis=dict(title="Hour of Day", gridcolor="rgba(255,255,255,0.05)"),
-                yaxis=dict(autorange="reversed")
-            )
-            st.plotly_chart(fig_hm, use_container_width=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with h2:
-        st.markdown("""
-        <div class="chart-wrap">
-            <div class="chart-header">
-                <div class="chart-title">🏆 Top Busiest Hub Rankings</div>
-                <div class="chart-badge">Foot Traffic Index</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        if not station_df.empty:
-            top_st = station_df.sort_values(by="foot_traffic_index", ascending=True)
-            fig_rank = gg.Figure(gg.Bar(
-                x=top_st["foot_traffic_index"], y=top_st["station_name"], orientation="h",
-                marker=dict(color="#06B6D4")
-            ))
-            fig_rank.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#F8FAFC"), height=460,
-                margin=dict(l=130, r=35, t=15, b=45),
-                xaxis=dict(title="Foot Traffic Index", range=[0, 115], gridcolor="rgba(255,255,255,0.05)"),
-                yaxis=dict(autorange="reversed")
-            )
-            st.plotly_chart(fig_rank, use_container_width=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# Tab 5: TfNSW Service Alerts & API Health Monitor
-with tab5:
-    a1, a2 = st.columns(2)
-
-    with a1:
-        st.markdown("""
-        <div class="chart-wrap">
-            <div class="chart-header">
-                <div class="chart-title">⚠️ Live TfNSW Transit Service Alerts Feed</div>
-                <div class="chart-badge">Realtime Disruption Feed</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        if not alerts_df.empty:
-            for _, alt in alerts_df.iterrows():
-                st.markdown(f"""
-                <div style="background: rgba(244, 63, 94, 0.1); border-left: 4px solid #F43F5E; padding: 12px 16px; margin-bottom: 12px; border-radius: 8px;">
-                    <b style="color:#F43F5E;">{alt['mode']}</b>: <b>{alt['header_text']}</b><br>
-                    <span style="font-size: 0.85rem; color:#E2E8F0;">{alt['description_text']}</span><br>
-                    <span style="font-size: 0.75rem; color:#94A3B8;">Cause: {alt['cause']} | Severity: {alt['severity']}</span>
+    st.subheader("🚨 Live TfNSW Service Disruptions & Alerts Feed")
+    alerts_df = get_service_alerts_df(DB_FILE)
+    if not alerts_df.empty:
+        for _, alt in alerts_df.iterrows():
+            sev = alt.get("severity", "MEDIUM")
+            badge_cls = "badge-heavy" if sev in ["CRITICAL", "HIGH"] else ("badge-mod" if sev == "MEDIUM" else "badge-low")
+            st.markdown(f"""
+            <div class="kpi-card" style="margin-bottom: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <b style="color:#06B6D4; font-size:16px;">[{alt['mode']}] {alt['header_text']}</b>
+                    <span class="badge {badge_cls}">{sev}</span>
                 </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.success("All TfNSW transit lines operating with zero major disruption notices.")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with a2:
-        st.markdown("""
-        <div class="chart-wrap">
-            <div class="chart-header">
-                <div class="chart-title">📡 TfNSW Open Data API Endpoint Status Monitor</div>
-                <div class="chart-badge">TfNSW Health Monitor</div>
+                <p style="color:#CBD5E1; font-size:13px; margin: 8px 0 4px 0;">{alt['description_text']}</p>
+                <div style="font-size:11px; color:#64748B;">Cause: {alt['cause']} | Effect: {alt['effect']} | Updated: {alt['updated_at']}</div>
             </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+    else:
+        st.success("No active service disruptions reported across Sydney public transport network.")
 
-        api_endpoints = [
-            ("GTFS Realtime Vehicle Positions - Sydney Trains", "ONLINE (200 OK)", "15s polling"),
-            ("GTFS Realtime Vehicle Positions - Sydney Metro", "ONLINE (200 OK)", "15s polling"),
-            ("GTFS Realtime Vehicle Positions - Sydney Buses", "ONLINE (200 OK)", "15s polling"),
-            ("GTFS Realtime Vehicle Positions - Sydney Ferries", "ONLINE (200 OK)", "30s polling"),
-            ("GTFS Realtime Vehicle Positions - Light Rail", "ONLINE (200 OK)", "30s polling"),
-            ("GTFS Realtime Trip Updates - Sydney Trains", "ONLINE (200 OK)", "30s polling"),
-            ("GTFS Realtime Service Alerts - All Modes", "ONLINE (200 OK)", "60s polling"),
-            ("Trip Planner Departure Monitor API (/v1/tp/departure_mon)", "ONLINE (200 OK)", "Realtime Hub Index"),
-        ]
-
-        rows_html = "".join([
-            f"<tr><td><b>{ep[0]}</b></td><td><span style='color:#10B981; font-weight:700;'>● {ep[1]}</span></td><td>{ep[2]}</td></tr>"
-            for ep in api_endpoints
-        ])
-
-        st.markdown(f"""
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>API Endpoint Feed</th>
-                    <th>Status</th>
-                    <th>Frequency</th>
-                </tr>
-            </thead>
-            <tbody>
-                {rows_html}
-            </tbody>
-        </table>
-        """, unsafe_allow_html=True)
-
-        st.markdown("</div>", unsafe_allow_html=True)
+# Footer & Publishing Guide
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #64748B; font-size: 12px; padding: 12px 0;">
+    <b>Sydney Transport Intelligence Platform</b> • Built with Streamlit, SQLite & Scikit-Learn • Data updated every 30 minutes via TfNSW Open Data APIs
+    <br>
+    <i>To publish this app: Push code to GitHub & deploy on Streamlit Community Cloud. Embed anywhere via <code>&lt;iframe src="https://your-app.streamlit.app" width="100%" height="800px"&gt;&lt;/iframe&gt;</code> into Notion, Netlify, or custom websites.</i>
+</div>
+""", unsafe_allow_html=True)

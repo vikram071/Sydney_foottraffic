@@ -17,7 +17,6 @@ def get_latest_metrics(db_path=DB_FILE):
     snapshot_id = row["id"]
     last_timestamp = row["timestamp"]
 
-    # Active vehicle count, occupancy, & speed
     cursor.execute("""
         SELECT 
             COUNT(*) as vehicle_count, 
@@ -28,7 +27,6 @@ def get_latest_metrics(db_path=DB_FILE):
     """, (snapshot_id,))
     v_res = cursor.fetchone()
 
-    # Busiest station & departures stats
     cursor.execute("""
         SELECT 
             station_name, 
@@ -41,14 +39,12 @@ def get_latest_metrics(db_path=DB_FILE):
     """, (snapshot_id,))
     s_res = cursor.fetchone()
 
-    # Route commute time benchmark (Parramatta -> Central)
     cursor.execute("""
         SELECT actual_time_min, delay_min FROM route_commute_times 
         WHERE snapshot_id = ? AND origin_name LIKE 'Parramatta%' LIMIT 1
     """, (snapshot_id,))
     r_res = cursor.fetchone()
 
-    # Get mode counts
     cursor.execute("""
         SELECT mode, COUNT(*) as cnt FROM vehicle_occupancy WHERE snapshot_id = ? GROUP BY mode
     """, (snapshot_id,))
@@ -141,6 +137,31 @@ def get_hourly_commute_trends_df(db_path=DB_FILE):
         LEFT JOIN station_foot_traffic st ON st.snapshot_id = s.id
         GROUP BY hour_bucket
         ORDER BY hour_bucket ASC
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+
+def get_animated_timeline_df(db_path=DB_FILE):
+    """Returns station foot traffic across all hours for 24-hour timeline animation playback."""
+    conn = get_db_connection(db_path)
+    query = """
+        SELECT 
+            st.station_name,
+            st.region,
+            st.latitude,
+            st.longitude,
+            st.mode,
+            st.foot_traffic_index,
+            st.status_level,
+            st.avg_delay_sec,
+            st.scheduled_departures,
+            st.timestamp,
+            strftime('%H:00', st.timestamp) as hour_str,
+            CAST(strftime('%H', st.timestamp) AS INTEGER) as hour_int
+        FROM station_foot_traffic st
+        ORDER BY hour_int ASC, st.foot_traffic_index DESC
     """
     df = pd.read_sql_query(query, conn)
     conn.close()

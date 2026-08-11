@@ -3,7 +3,8 @@ import os
 import random
 from datetime import datetime, timedelta
 
-DB_FILE = "sydney_commute.db"
+# Support candidates.db or sydney_commute.db via env variable
+DB_FILE = os.environ.get("DB_FILE", "sydney_commute.db")
 
 # 20 Major Sydney Interchanges with geographic & region metadata
 SYDNEY_HUBS = [
@@ -55,14 +56,15 @@ OCCUPANCY_MAP = {
 
 
 def get_db_connection(db_path=DB_FILE):
-    """Establishes and returns a SQLite connection with Row factory."""
+    """Establishes and returns a SQLite connection with Row factory and Foreign Keys enabled."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
 
 def init_db(db_path=DB_FILE):
-    """Creates tables and indexes if they do not exist."""
+    """Creates normalized database tables, foreign key constraints, and indexes if they do not exist."""
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
@@ -89,7 +91,7 @@ def init_db(db_path=DB_FILE):
             occupancy_status TEXT DEFAULT 'UNKNOWN',
             occupancy_score INTEGER DEFAULT 0,
             trip_id TEXT,
-            FOREIGN KEY (snapshot_id) REFERENCES snapshots (id)
+            FOREIGN KEY (snapshot_id) REFERENCES snapshots (id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS station_foot_traffic (
@@ -107,7 +109,7 @@ def init_db(db_path=DB_FILE):
             avg_delay_sec REAL DEFAULT 0,
             foot_traffic_index REAL DEFAULT 0,
             status_level TEXT DEFAULT 'MODERATE',
-            FOREIGN KEY (snapshot_id) REFERENCES snapshots (id)
+            FOREIGN KEY (snapshot_id) REFERENCES snapshots (id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS route_commute_times (
@@ -122,7 +124,7 @@ def init_db(db_path=DB_FILE):
             actual_time_min REAL DEFAULT 0,
             delay_min REAL DEFAULT 0,
             congestion_factor REAL DEFAULT 1.0,
-            FOREIGN KEY (snapshot_id) REFERENCES snapshots (id)
+            FOREIGN KEY (snapshot_id) REFERENCES snapshots (id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS service_alerts (
@@ -152,18 +154,16 @@ def init_db(db_path=DB_FILE):
             trained_at TEXT NOT NULL
         );
 
+        CREATE INDEX IF NOT EXISTS idx_snapshots_timestamp ON snapshots (timestamp);
+        CREATE INDEX IF NOT EXISTS idx_vehicle_snapshot ON vehicle_occupancy (snapshot_id);
         CREATE INDEX IF NOT EXISTS idx_vehicle_timestamp ON vehicle_occupancy (timestamp);
         CREATE INDEX IF NOT EXISTS idx_vehicle_mode ON vehicle_occupancy (mode);
+        CREATE INDEX IF NOT EXISTS idx_station_snapshot ON station_foot_traffic (snapshot_id);
         CREATE INDEX IF NOT EXISTS idx_station_timestamp ON station_foot_traffic (timestamp);
+        CREATE INDEX IF NOT EXISTS idx_commute_snapshot ON route_commute_times (snapshot_id);
         CREATE INDEX IF NOT EXISTS idx_commute_timestamp ON route_commute_times (timestamp);
         CREATE INDEX IF NOT EXISTS idx_alert_timestamp ON service_alerts (timestamp);
     """)
-
-    # Column migrations if table existed previously
-    try:
-        cursor.execute("ALTER TABLE station_foot_traffic ADD COLUMN region TEXT DEFAULT 'CBD'")
-    except Exception:
-        pass
 
     conn.commit()
     conn.close()
@@ -185,12 +185,11 @@ def seed_baseline_history_if_empty(db_path=DB_FILE):
     now = datetime.now()
     modes = ["Sydney Trains", "Sydney Metro", "Sydney Buses", "Sydney Ferries", "Light Rail"]
 
-    # Generate 24 hours of hourly snapshots
     for hours_ago in range(24, -1, -1):
-        snapshot_time = (now - timedelta(hours=hours_ago)).strftime("%Y-%m-%d %H:00:00")
-        hour_of_day = (now - timedelta(hours=hours_ago)).hour
+        snapshot_dt = now - timedelta(hours=hours_ago)
+        snapshot_time = snapshot_dt.strftime("%Y-%m-%d %H:00:00")
+        hour_of_day = snapshot_dt.hour
 
-        # Peak Hour Multiplier
         if 7 <= hour_of_day <= 9 or 16 <= hour_of_day <= 18:
             peak_factor = 2.4
         elif 10 <= hour_of_day <= 15:
@@ -206,11 +205,9 @@ def seed_baseline_history_if_empty(db_path=DB_FILE):
         )
         snapshot_id = cursor.lastrowid
 
-        # Insert Vehicle Occupancy records
         num_vehicles = int(random.randint(60, 95) * peak_factor)
         for v in range(num_vehicles):
             mode = random.choice(modes)
-            
             if peak_factor > 1.8:
                 occ_status = random.choice(["STANDING_ROOM_ONLY", "CRUSHED_STANDING_ROOM_ONLY", "FEW_SEATS_AVAILABLE", "FULL"])
             elif peak_factor < 0.5:
@@ -234,7 +231,6 @@ def seed_baseline_history_if_empty(db_path=DB_FILE):
                 mode, f"LINE-{random.randint(1, 14)}", lat, lon, speed, occ_status, occ_score, f"TRIP-{random.randint(10000, 99999)}"
             ))
 
-        # Insert Station Foot Traffic records across 20 hubs
         for hub in SYDNEY_HUBS:
             base_deps = random.randint(18, 48)
             sched_deps = int(base_deps * peak_factor)
@@ -261,7 +257,6 @@ def seed_baseline_history_if_empty(db_path=DB_FILE):
                 hub["lat"], hub["lon"], hub["mode"], sched_deps, delayed_deps, avg_delay, traffic_idx, status_lvl
             ))
 
-        # Insert Route Commute Time records
         for corr in SYDNEY_CORRIDORS:
             cong_factor = round(1.0 + (peak_factor - 1.0) * random.uniform(0.2, 0.45), 2)
             actual_time = round(corr["base_time_min"] * cong_factor, 1)
@@ -276,7 +271,6 @@ def seed_baseline_history_if_empty(db_path=DB_FILE):
                 corr["dist_km"], corr["base_time_min"], actual_time, delay_min, cong_factor
             ))
 
-        # Seed sample Service Alerts
         alerts_seed = [
             ("Sydney Trains", "T1 Western Line Track Maintenance", "Buses replace trains between Blacktown and Parramatta due to planned trackwork.", "MAINTENANCE", "REDUCED_SERVICE", "MEDIUM"),
             ("Sydney Metro", "M1 Northwest Metro Peak Frequency Upgrade", "High frequency 4-minute service active through Chatswood to Sydenham corridor.", "OPERATIONAL_UPDATE", "ADDITIONAL_SERVICE", "INFO"),
