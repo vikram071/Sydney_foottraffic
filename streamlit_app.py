@@ -523,26 +523,33 @@ with tab4:
     st.markdown("#### 2. Power BI Python Import Script")
     st.markdown("In Power BI Desktop, click **Get Data > Python Script** and paste the following snippet:")
     
-    pbi_script = f"""import sqlite3
+    pbi_script = f"""import os
+import tempfile
+import sqlite3
 import pandas as pd
 import urllib.request
 
-# 1. Download live SQLite DB snapshot from GitHub
+# 1. Download live SQLite DB snapshot to Windows Temp folder (fixes Access Denied)
 db_url = "{db_raw_url}"
-db_file = "sydney_commute.db"
-urllib.request.urlretrieve(db_url, db_file)
+temp_dir = tempfile.gettempdir()
+db_file = os.path.join(temp_dir, "sydney_commute.db")
 
-# 2. Connect to SQLite Star Schema & Views
+# Download with User-Agent header
+req = urllib.request.Request(db_url, headers={{'User-Agent': 'Mozilla/5.0'}})
+with urllib.request.urlopen(req) as response, open(db_file, 'wb') as out_file:
+    out_file.write(response.read())
+
+# 2. Connect to SQLite Star Schema & Analytics Views
 conn = sqlite3.connect(db_file)
 
-# Fact & Dimension DataFrames for Power BI Star Schema
+# Fact & Dimension DataFrames for Power BI
 dim_stations = pd.read_sql_query("SELECT * FROM dim_stations", conn)
 fact_vehicle = pd.read_sql_query("SELECT * FROM fact_vehicle_occupancy", conn)
 fact_station = pd.read_sql_query("SELECT * FROM fact_station_foot_traffic", conn)
 fact_trip_updates = pd.read_sql_query("SELECT * FROM fact_trip_updates", conn)
 fact_commute = pd.read_sql_query("SELECT * FROM fact_route_commute_times", conn)
 
-# Optimized Analytics Views
+# Analytical SQL Views
 view_fleet_summary = pd.read_sql_query("SELECT * FROM view_powerbi_fleet_summary", conn)
 view_station_hourly = pd.read_sql_query("SELECT * FROM view_powerbi_station_hourly", conn)
 
