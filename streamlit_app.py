@@ -15,6 +15,7 @@ from analytics import (
     get_station_foot_traffic_df,
     get_hourly_commute_trends_df,
     get_animated_timeline_df,
+    get_trip_updates_df,
     get_mode_breakdown_df,
     get_station_congestion_heatmap_df,
     get_service_alerts_df
@@ -23,7 +24,7 @@ from ml_models import train_time_series_forecaster, get_route_commute_benchmark_
 
 # Page Configuration
 st.set_page_config(
-    page_title="Sydney Transport Intelligence | Live Foot Traffic & ML Platform",
+    page_title="Sydney Transport Intelligence | Live Star Schema Analytics Platform",
     page_icon="🚆",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -123,7 +124,7 @@ MODE_HEX = {
 # Sidebar Navigation & Filters
 st.sidebar.image("https://img.icons8.com/isometric/96/subway.png", width=64)
 st.sidebar.title("Sydney Transport AI")
-st.sidebar.caption("Real-Time Foot Traffic & ML Analytics Platform")
+st.sidebar.caption("Star Schema Analytics & Power BI Platform")
 
 metrics = get_latest_metrics(DB_FILE)
 
@@ -147,7 +148,7 @@ if st.sidebar.button("🔄 Trigger Live Polling Job"):
 
 # Title Header
 st.title("🚆 Sydney Transport Intelligence Platform")
-st.markdown("Real-time TfNSW GTFS-R fleet tracking, station foot traffic density, and Ridge ML time-series forecasting.")
+st.markdown("Real-time TfNSW GTFS-R fleet tracking, station foot traffic density, Power BI Star Schema, and Ridge ML time-series forecasting.")
 
 # Executive KPI Cards
 st.markdown("### 📊 Executive Overview")
@@ -216,13 +217,11 @@ if not anim_df.empty:
     with anim_col2:
         selected_hour = st.slider("Hour of Day Timeline", 0, 23, 8, format="%02d:00")
 
-    # If Play button is clicked, iterate through hours
     if play_btn:
         placeholder = st.empty()
         for h in range(24):
             h_df = anim_df[anim_df["hour_int"] == h]
             if not h_df.empty:
-                # Map colors based on status
                 color_map = {
                     "HEAVY_CONGESTION": [244, 63, 94, 200],
                     "BUSY": [249, 115, 22, 190],
@@ -249,7 +248,6 @@ if not anim_df.empty:
                     st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, tooltip={"text": "{station_name}\nFoot Traffic Index: {foot_traffic_index}\nStatus: {status_level}"}))
                 time.sleep(play_speed)
     else:
-        # Show specific selected hour
         h_df = anim_df[anim_df["hour_int"] == selected_hour]
         if not h_df.empty:
             color_map = {
@@ -276,8 +274,8 @@ if not anim_df.empty:
 
 st.markdown("---")
 
-# Tabbed Main Content: 1. Time-Series & ML, 2. Fleet & Station Explorer, 3. Corridors & Service Alerts
-tab1, tab2, tab3 = st.tabs(["📈 24H Time-Series & ML Forecasting", "🗺️ Station & Fleet Explorer", "🛣️ Corridors & Disruption Alerts"])
+# Tabbed Main Content
+tab1, tab2, tab3, tab4 = st.tabs(["📈 24H Time-Series & ML", "🗺️ Station & Fleet Explorer", "🛣️ Corridors & Disruptions", "⚡ Power BI & SQL Integration"])
 
 with tab1:
     st.subheader("⏱️ 24-Hour Aggregated Sydney Foot Traffic & Delay Trends")
@@ -324,7 +322,6 @@ with tab1:
 
     st.markdown("---")
     
-    # ML Ridge Time-Series Forecasting
     st.subheader("🤖 Ridge ML Time-Series Foot Traffic Forecasting Model")
     st.caption("24-Hour Ahead Predicted Traffic Curve with 95% Confidence Interval Band.")
 
@@ -336,27 +333,23 @@ with tab1:
         if not pred_df.empty:
             fig_ml = gg.Figure()
 
-            # Upper CI
             fig_ml.add_trace(gg.Scatter(
                 x=pred_df["formatted_hour"], y=pred_df["upper_ci"],
                 mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"
             ))
 
-            # Lower CI with fill
             fig_ml.add_trace(gg.Scatter(
                 x=pred_df["formatted_hour"], y=pred_df["lower_ci"],
                 mode="lines", line=dict(width=0), fill="tonexty",
                 fillcolor="rgba(139, 92, 246, 0.18)", name="95% Confidence Interval"
             ))
 
-            # Actual
             fig_ml.add_trace(gg.Scatter(
                 x=pred_df["formatted_hour"], y=pred_df["actual_avg"],
                 name="Actual Traffic", mode="lines+markers",
                 line=dict(color="#06B6D4", width=3, shape="spline")
             ))
 
-            # Forecast
             fig_ml.add_trace(gg.Scatter(
                 x=pred_df["formatted_hour"], y=pred_df["predicted_idx"],
                 name="ML Ridge Forecast", mode="lines+markers",
@@ -381,7 +374,6 @@ with tab1:
         st.metric("Mean Absolute Error (MAE)", f"{ml_metrics.get('mae', 0):.2f}")
         st.metric("Root Mean Sq Error (RMSE)", f"{ml_metrics.get('rmse', 0):.2f}")
         st.metric("R² Score Accuracy", f"{ml_metrics.get('r2', 0):.2f}")
-        st.info("Features: Hour of day, day of week, peak hour binary indicator, lag-1 & lag-2 features.")
 
     st.markdown("---")
     st.subheader("🔥 24-Hour Station Congestion Heatmap Matrix")
@@ -515,15 +507,63 @@ with tab3:
                 <div style="font-size:11px; color:#64748B;">Cause: {alt['cause']} | Effect: {alt['effect']} | Updated: {alt['updated_at']}</div>
             </div>
             """, unsafe_allow_html=True)
-    else:
-        st.success("No active service disruptions reported across Sydney public transport network.")
+
+
+with tab4:
+    st.subheader("⚡ Power BI & External SQL Database Integration")
+    st.markdown("""
+    Our SQLite database is continuously updated every 30 minutes by GitHub Actions and hosted on a public GitHub URL.
+    You can connect **Power BI Desktop**, **Excel**, **Tableau**, or custom **Python/R scripts** directly to the public `.db` file!
+    """)
+    
+    st.markdown("#### 1. Public Raw Database URL")
+    db_raw_url = "https://raw.githubusercontent.com/vikram071/Sydney_foottraffic/main/sydney_commute.db"
+    st.code(db_raw_url, language="text")
+
+    st.markdown("#### 2. Power BI Python Import Script")
+    st.markdown("In Power BI Desktop, click **Get Data > Python Script** and paste the following snippet:")
+    
+    pbi_script = f"""import sqlite3
+import pandas as pd
+import urllib.request
+
+# 1. Download live SQLite DB snapshot from GitHub
+db_url = "{db_raw_url}"
+db_file = "sydney_commute.db"
+urllib.request.urlretrieve(db_url, db_file)
+
+# 2. Connect to SQLite Star Schema & Views
+conn = sqlite3.connect(db_file)
+
+# Fact & Dimension DataFrames for Power BI Star Schema
+dim_stations = pd.read_sql_query("SELECT * FROM dim_stations", conn)
+fact_vehicle = pd.read_sql_query("SELECT * FROM fact_vehicle_occupancy", conn)
+fact_station = pd.read_sql_query("SELECT * FROM fact_station_foot_traffic", conn)
+fact_trip_updates = pd.read_sql_query("SELECT * FROM fact_trip_updates", conn)
+fact_commute = pd.read_sql_query("SELECT * FROM fact_route_commute_times", conn)
+
+# Optimized Analytics Views
+view_fleet_summary = pd.read_sql_query("SELECT * FROM view_powerbi_fleet_summary", conn)
+view_station_hourly = pd.read_sql_query("SELECT * FROM view_powerbi_station_hourly", conn)
+
+conn.close()
+"""
+    st.code(pbi_script, language="python")
+
+    st.markdown("#### 3. Power BI Star Schema Table Structure")
+    st.markdown("""
+    - **`dim_stations`** *(Station Dimension: station_id, station_name, region, lat, lon)*
+    - **`dim_routes`** *(Route Dimension: route_id, mode, agency_name)*
+    - **`dim_snapshots`** *(Snapshot Header: snapshot_id, timestamp, run_type, status)*
+    - **`fact_vehicle_occupancy`** *(Vehicle Tracking: snapshot_id, vehicle_id, speed_kmh, bearing, occupancy_score)*
+    - **`fact_station_foot_traffic`** *(Station Traffic: snapshot_id, station_id, foot_traffic_index, delays)*
+    - **`fact_trip_updates`** *(GTFS-R Stop Delays: trip_id, stop_id, arrival_delay_sec, departure_delay_sec)*
+    """)
 
 # Footer & Publishing Guide
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #64748B; font-size: 12px; padding: 12px 0;">
-    <b>Sydney Transport Intelligence Platform</b> • Built with Streamlit, SQLite & Scikit-Learn • Data updated every 30 minutes via TfNSW Open Data APIs
-    <br>
-    <i>To publish this app: Push code to GitHub & deploy on Streamlit Community Cloud. Embed anywhere via <code>&lt;iframe src="https://your-app.streamlit.app" width="100%" height="800px"&gt;&lt;/iframe&gt;</code> into Notion, Netlify, or custom websites.</i>
+    <b>Sydney Transport Intelligence Platform</b> • Star Schema Model • Power BI Ready
 </div>
 """, unsafe_allow_html=True)

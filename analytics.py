@@ -8,8 +8,12 @@ def get_latest_metrics(db_path=DB_FILE):
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, timestamp FROM snapshots ORDER BY id DESC LIMIT 1")
+    cursor.execute("SELECT snapshot_id as id, timestamp FROM dim_snapshots ORDER BY snapshot_id DESC LIMIT 1")
     row = cursor.fetchone()
+    if not row:
+        cursor.execute("SELECT id, timestamp FROM snapshots ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+
     if not row:
         conn.close()
         return {}
@@ -21,9 +25,9 @@ def get_latest_metrics(db_path=DB_FILE):
         SELECT 
             COUNT(*) as vehicle_count, 
             AVG(occupancy_score) as avg_occupancy,
-            AVG(speed) as avg_speed,
+            AVG(speed_kmh) as avg_speed,
             SUM(CASE WHEN occupancy_status IN ('STANDING_ROOM_ONLY', 'CRUSHED_STANDING_ROOM_ONLY', 'FULL') THEN 1 ELSE 0 END) as congested_vehicles
-        FROM vehicle_occupancy WHERE snapshot_id = ?
+        FROM fact_vehicle_occupancy WHERE snapshot_id = ?
     """, (snapshot_id,))
     v_res = cursor.fetchone()
 
@@ -35,18 +39,18 @@ def get_latest_metrics(db_path=DB_FILE):
             SUM(scheduled_departures) as total_deps,
             SUM(delayed_departures) as total_delays,
             AVG(avg_delay_sec) as network_avg_delay
-        FROM station_foot_traffic WHERE snapshot_id = ?
+        FROM fact_station_foot_traffic WHERE snapshot_id = ?
     """, (snapshot_id,))
     s_res = cursor.fetchone()
 
     cursor.execute("""
-        SELECT actual_time_min, delay_min FROM route_commute_times 
+        SELECT actual_time_min, delay_min FROM fact_route_commute_times 
         WHERE snapshot_id = ? AND origin_name LIKE 'Parramatta%' LIMIT 1
     """, (snapshot_id,))
     r_res = cursor.fetchone()
 
     cursor.execute("""
-        SELECT mode, COUNT(*) as cnt FROM vehicle_occupancy WHERE snapshot_id = ? GROUP BY mode
+        SELECT mode, COUNT(*) as cnt FROM fact_vehicle_occupancy WHERE snapshot_id = ? GROUP BY mode
     """, (snapshot_id,))
     mode_counts = {r["mode"]: r["cnt"] for r in cursor.fetchall()}
 
@@ -84,12 +88,12 @@ def get_vehicle_occupancy_df(db_path=DB_FILE, mode_filter=None, limit_latest=Tru
     conn = get_db_connection(db_path)
     if limit_latest:
         query = """
-            SELECT v.* FROM vehicle_occupancy v
-            INNER JOIN (SELECT id FROM snapshots ORDER BY id DESC LIMIT 1) s
-            ON v.snapshot_id = s.id
+            SELECT v.* FROM fact_vehicle_occupancy v
+            INNER JOIN (SELECT snapshot_id FROM dim_snapshots ORDER BY snapshot_id DESC LIMIT 1) s
+            ON v.snapshot_id = s.snapshot_id
         """
     else:
-        query = "SELECT * FROM vehicle_occupancy"
+        query = "SELECT * FROM fact_vehicle_occupancy"
     
     df = pd.read_sql_query(query, conn)
     conn.close()
@@ -104,13 +108,13 @@ def get_station_foot_traffic_df(db_path=DB_FILE, region_filter=None, limit_lates
     conn = get_db_connection(db_path)
     if limit_latest:
         query = """
-            SELECT st.* FROM station_foot_traffic st
-            INNER JOIN (SELECT id FROM snapshots ORDER BY id DESC LIMIT 1) s
-            ON st.snapshot_id = s.id
+            SELECT st.* FROM fact_station_foot_traffic st
+            INNER JOIN (SELECT snapshot_id FROM dim_snapshots ORDER BY snapshot_id DESC LIMIT 1) s
+            ON st.snapshot_id = s.snapshot_id
             ORDER BY st.foot_traffic_index DESC
         """
     else:
-        query = "SELECT * FROM station_foot_traffic ORDER BY foot_traffic_index DESC"
+        query = "SELECT * FROM fact_station_foot_traffic ORDER BY foot_traffic_index DESC"
 
     df = pd.read_sql_query(query, conn)
     conn.close()
@@ -132,9 +136,9 @@ def get_hourly_commute_trends_df(db_path=DB_FILE):
             SUM(st.scheduled_departures) as total_scheduled_deps,
             SUM(st.delayed_departures) as total_delayed_deps,
             ROUND(AVG(st.avg_delay_sec), 1) as avg_delay_seconds
-        FROM snapshots s
-        LEFT JOIN vehicle_occupancy v ON v.snapshot_id = s.id
-        LEFT JOIN station_foot_traffic st ON st.snapshot_id = s.id
+        FROM dim_snapshots s
+        LEFT JOIN fact_vehicle_occupancy v ON v.snapshot_id = s.snapshot_id
+        LEFT JOIN fact_station_foot_traffic st ON st.snapshot_id = s.snapshot_id
         GROUP BY hour_bucket
         ORDER BY hour_bucket ASC
     """
@@ -160,8 +164,22 @@ def get_animated_timeline_df(db_path=DB_FILE):
             st.timestamp,
             strftime('%H:00', st.timestamp) as hour_str,
             CAST(strftime('%H', st.timestamp) AS INTEGER) as hour_int
-        FROM station_foot_traffic st
+        FROM fact_station_foot_traffic st
         ORDER BY hour_int ASC, st.foot_traffic_index DESC
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+
+def get_trip_updates_df(db_path=DB_FILE):
+    """Returns pandas DataFrame of real-time stop-level arrival and departure delay updates."""
+    conn = get_db_connection(db_path)
+    query = """
+        SELECT tu.* FROM fact_trip_updates tu
+        INNER JOIN (SELECT snapshot_id FROM dim_snapshots ORDER BY snapshot_id DESC LIMIT 1) s
+        ON tu.snapshot_id = s.snapshot_id
+        ORDER BY tu.arrival_delay_sec DESC
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
@@ -176,11 +194,11 @@ def get_mode_breakdown_df(db_path=DB_FILE):
             mode,
             COUNT(*) as vehicle_count,
             ROUND(AVG(occupancy_score), 1) as avg_occupancy,
-            ROUND(AVG(speed), 1) as avg_speed,
-            ROUND(MAX(speed), 1) as max_speed,
+            ROUND(AVG(speed_kmh), 1) as avg_speed,
+            ROUND(MAX(speed_kmh), 1) as max_speed,
             SUM(CASE WHEN occupancy_status IN ('STANDING_ROOM_ONLY', 'CRUSHED_STANDING_ROOM_ONLY', 'FULL') THEN 1 ELSE 0 END) as high_occupancy_count
-        FROM vehicle_occupancy
-        WHERE snapshot_id = (SELECT id FROM snapshots ORDER BY id DESC LIMIT 1)
+        FROM fact_vehicle_occupancy
+        WHERE snapshot_id = (SELECT snapshot_id FROM dim_snapshots ORDER BY snapshot_id DESC LIMIT 1)
         GROUP BY mode
         ORDER BY vehicle_count DESC
     """
@@ -197,7 +215,7 @@ def get_station_congestion_heatmap_df(db_path=DB_FILE):
             st.station_name,
             strftime('%H:00', st.timestamp) as hour_of_day,
             ROUND(AVG(st.foot_traffic_index), 1) as foot_traffic_index
-        FROM station_foot_traffic st
+        FROM fact_station_foot_traffic st
         GROUP BY st.station_name, hour_of_day
         ORDER BY st.station_name, hour_of_day ASC
     """
@@ -214,7 +232,7 @@ def get_station_congestion_heatmap_df(db_path=DB_FILE):
 def get_service_alerts_df(db_path=DB_FILE):
     """Returns pandas DataFrame of active service disruption alerts."""
     conn = get_db_connection(db_path)
-    query = "SELECT * FROM service_alerts ORDER BY id DESC LIMIT 20"
+    query = "SELECT * FROM fact_service_alerts ORDER BY id DESC LIMIT 20"
     df = pd.read_sql_query(query, conn)
     conn.close()
     return df

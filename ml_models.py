@@ -16,7 +16,6 @@ def train_time_series_forecaster(db_path=DB_FILE):
     """
     conn = get_db_connection(db_path)
     
-    # Query historical station traffic
     query = """
         SELECT 
             st.timestamp,
@@ -25,14 +24,13 @@ def train_time_series_forecaster(db_path=DB_FILE):
             st.scheduled_departures,
             st.delayed_departures,
             st.avg_delay_sec
-        FROM station_foot_traffic st
+        FROM fact_station_foot_traffic st
         ORDER BY st.timestamp ASC
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
 
     if df.empty or len(df) < 10:
-        # Fallback dummy predictions if insufficient data
         hours = [(datetime.now() + timedelta(hours=i)).strftime("%H:00") for i in range(24)]
         pred_df = pd.DataFrame({
             "hour": hours,
@@ -43,20 +41,17 @@ def train_time_series_forecaster(db_path=DB_FILE):
         })
         return pred_df, {"mae": 2.1, "rmse": 2.8, "r2": 0.94}
 
-    # Feature Engineering
     df["dt"] = pd.to_datetime(df["timestamp"])
     df["hour_of_day"] = df["dt"].dt.hour
     df["day_of_week"] = df["dt"].dt.dayofweek
     df["is_peak"] = df["hour_of_day"].apply(lambda h: 1 if (7 <= h <= 9 or 16 <= h <= 18) else 0)
 
-    # Group by hour of day across all stations for aggregate network curve
     hourly_df = df.groupby("hour_of_day").agg(
         avg_foot_traffic=("foot_traffic_index", "mean"),
         avg_sched_deps=("scheduled_departures", "mean"),
         avg_delay_sec=("avg_delay_sec", "mean")
     ).reset_index()
 
-    # Lag features
     hourly_df["lag_1"] = hourly_df["avg_foot_traffic"].shift(1).fillna(hourly_df["avg_foot_traffic"].mean())
     hourly_df["lag_2"] = hourly_df["avg_foot_traffic"].shift(2).fillna(hourly_df["avg_foot_traffic"].mean())
     hourly_df["is_peak"] = hourly_df["hour_of_day"].apply(lambda h: 1 if (7 <= h <= 9 or 16 <= h <= 18) else 0)
@@ -64,7 +59,6 @@ def train_time_series_forecaster(db_path=DB_FILE):
     X = hourly_df[["hour_of_day", "lag_1", "lag_2", "is_peak"]]
     y = hourly_df["avg_foot_traffic"]
 
-    # Chronological Train-Test Split (First 80% train, last 20% validation)
     split_idx = int(len(X) * 0.8)
     if split_idx < 3:
         split_idx = len(X) - 1
@@ -84,7 +78,6 @@ def train_time_series_forecaster(db_path=DB_FILE):
     rmse = round(float(root_mean_squared_error(y_test, y_pred_test)), 2) if len(y_test) > 1 else 3.1
     r2 = round(float(r2_score(y_test, y_pred_test)), 2) if len(y_test) > 1 else 0.92
 
-    # Predict full 24-hour curve
     X_full_scaled = scaler.transform(X)
     full_preds = model.predict(X_full_scaled)
     std_err = max(2.5, float(np.std(y - full_preds)))
@@ -115,7 +108,7 @@ def get_route_commute_benchmark_df(db_path=DB_FILE):
             ROUND(AVG(actual_time_min), 1) as avg_actual_time_min,
             ROUND(AVG(delay_min), 1) as avg_delay_min,
             ROUND(AVG(congestion_factor), 2) as avg_congestion_factor
-        FROM route_commute_times
+        FROM fact_route_commute_times
         GROUP BY origin_name, dest_name, mode
         ORDER BY distance_km DESC
     """
@@ -124,6 +117,8 @@ def get_route_commute_benchmark_df(db_path=DB_FILE):
 
     if not df.empty:
         df["route_label"] = df["origin_name"].apply(lambda x: x.split(" ")[0]) + " -> " + df["dest_name"].apply(lambda x: x.split(" ")[0])
+    else:
+        df["route_label"] = pd.Series(dtype=str)
     return df
 
 
@@ -134,4 +129,5 @@ if __name__ == "__main__":
 
     routes_df = get_route_commute_benchmark_df()
     print("\nRoute Commute Benchmarks:")
-    print(routes_df[["route_label", "mode", "baseline_time_min", "avg_actual_time_min", "avg_delay_min"]])
+    if not routes_df.empty:
+        print(routes_df[["route_label", "mode", "baseline_time_min", "avg_actual_time_min", "avg_delay_min"]])
