@@ -305,7 +305,6 @@ def export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes, 
     if vehicles:
         v_df = pd.DataFrame(vehicles)
         v_df["speed_category"] = v_df["speed"].apply(lambda s: "STATIONARY" if s < 2.0 else ("SLOW_TRAFFIC" if s < 25.0 else ("NORMAL_SPEED" if s < 60.0 else "EXPRESS")))
-        # Ensure pulled_at columns are leading
         cols = ["pulled_at", "pulled_date", "pulled_time"] + [c for c in v_df.columns if c not in ["pulled_at", "pulled_date", "pulled_time"]]
         v_df[cols].to_csv("data/latest_fleet.csv", index=False)
 
@@ -327,9 +326,9 @@ def export_powerbi_csv_rest_endpoints(vehicles, trip_updates, stations, routes, 
         r_df[cols].to_csv("data/latest_commute_routes.csv", index=False)
 
     alerts_seed = [
-        {"pulled_at": pulled_at, "pulled_date": pulled_date, "pulled_time": pulled_time, "alert_id": "ALT-101", "mode": "Sydney Trains", "header_text": "T1 Western Line Trackwork", "description_text": "Buses replace trains between Blacktown and Parramatta.", "severity": "MEDIUM", "updated_at": pulled_at},
-        {"pulled_at": pulled_at, "pulled_date": pulled_date, "pulled_time": pulled_time, "alert_id": "ALT-102", "mode": "Sydney Metro", "header_text": "M1 Metro Peak Upgrade", "description_text": "High frequency 4-minute service active through CBD corridor.", "severity": "INFO", "updated_at": pulled_at},
-        {"pulled_at": pulled_at, "pulled_date": pulled_date, "pulled_time": pulled_time, "alert_id": "ALT-103", "mode": "Sydney Ferries", "header_text": "F1 Manly Swell Advisory", "description_text": "Ferries operating at reduced speed near Sydney Heads.", "severity": "MEDIUM", "updated_at": pulled_at}
+        {"pulled_at": pulled_at, "pulled_date": pulled_date, "pulled_time": pulled_time, "alert_id": "ALT-101", "mode": "Sydney Trains", "header_text": "T1 Western Line Trackwork", "description_text": "Buses replacing trains between Blacktown and Parramatta."},
+        {"pulled_at": pulled_at, "pulled_date": pulled_date, "pulled_time": pulled_time, "alert_id": "ALT-102", "mode": "Sydney Metro", "header_text": "M1 Metro Peak Upgrade", "description_text": "High-frequency 4-minute service active."},
+        {"pulled_at": pulled_at, "pulled_date": pulled_date, "pulled_time": pulled_time, "alert_id": "ALT-103", "mode": "Sydney Ferries", "header_text": "F1 Manly Swell Advisory", "description_text": "Reduced speed near Sydney Heads due to ocean swells."},
     ]
     pd.DataFrame(alerts_seed).to_csv("data/latest_service_alerts.csv", index=False)
 
