@@ -35,7 +35,8 @@ DEPARTURE_MON_BASE = "https://api.transport.nsw.gov.au/v1/tp/departure_mon"
 
 def get_api_key():
     """Returns TfNSW API key from environment variable or fallback."""
-    return os.environ.get("TFNSW_API_KEY", DEFAULT_API_KEY)
+    key = os.environ.get("TFNSW_API_KEY", "").strip()
+    return key if key else DEFAULT_API_KEY
 
 
 def fetch_gtfs_realtime_vehicles(api_key, now_dt):
